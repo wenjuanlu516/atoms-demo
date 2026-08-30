@@ -26,11 +26,13 @@ export function ChatPanel({
   const pastRounds = useChatStore((state) => state.pastRounds)
   const current = useProjectStore((state) => state.current)
   const [deciding, setDeciding] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const empty = messages.length === 0
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const node = listRef.current
+    if (!node) return
+    node.scrollTop = node.scrollHeight
   }, [messages, awaitingApproval, steps, pastRounds])
 
   const decide = (approved: boolean) => {
@@ -50,8 +52,8 @@ export function ChatPanel({
   }
 
   return (
-    <section className="flex h-full min-w-0 flex-col border-r border-line bg-panel">
-      <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-4">
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-line bg-panel">
+      <div ref={listRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-4">
         {isStaticDemo() && (
           <p className="rounded-lg border border-line bg-raised px-3 py-2 text-[11px] leading-5 text-mist">
             GitHub Pages 静态演示：生成走内置回放，数据存在本机浏览器。完整管线请本地 <code className="text-fog">./start.sh</code>。
@@ -82,7 +84,6 @@ export function ChatPanel({
         {(busy || steps.some((step) => step.status !== 'pending') || pastRounds.length > 0) && (
           <ProgressTrack steps={steps} pastRounds={pastRounds} />
         )}
-        <div ref={bottomRef} />
       </div>
       <MessageInput
         busy={busy}

@@ -53,51 +53,37 @@ def compile_jsx(source: str) -> str:
         assert source[i] == "{"
         i += 1
         depth = 1
+        parts: list[str] = []
         start = i
         while i < n and depth:
             if source[i] in "'\"":
-                read_string()
+                parts.append(source[start:i])
+                parts.append(read_string())
+                start = i
                 continue
             if source[i] == "`":
+                parts.append(source[start:i])
+                tick = i
                 parse_backtick()
+                parts.append(source[tick:i])
+                start = i
                 continue
             if source[i] == "{":
                 depth += 1
-            elif source[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    break
-            elif source[i] == "<" and starts_jsx():
-                before = source[start:i]
-                inner = parse_element()
-                start = i
-                return before + inner + parse_after_nested()
-            i += 1
-        body = source[start:i]
-        if i < n and source[i] == "}":
-            i += 1
-        return body
-
-    def parse_after_nested() -> str:
-        nonlocal i
-        start = i
-        depth = 1
-        parts = [""]
-        while i < n and depth:
-            if source[i] == "{":
-                depth += 1
                 i += 1
-            elif source[i] == "}":
+                continue
+            if source[i] == "}":
                 depth -= 1
                 if depth == 0:
                     break
                 i += 1
-            elif source[i] == "<" and starts_jsx():
+                continue
+            if source[i] == "<" and starts_jsx() and should_read_jsx(source, i):
                 parts.append(source[start:i])
                 parts.append(parse_element())
                 start = i
-            else:
-                i += 1
+                continue
+            i += 1
         parts.append(source[start:i])
         if i < n and source[i] == "}":
             i += 1
@@ -238,6 +224,8 @@ def should_read_jsx(source: str, i: int) -> bool:
     if j < 0:
         return True
     ch = source[j]
+    if ch in "({[=,:?;":
+        return True
     if ch.isalnum() or ch in ")]}.":
         k = j
         while k >= 0 and (source[k].isalnum() or source[k] == "_"):

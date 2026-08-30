@@ -9,6 +9,7 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 | 仓库 | https://github.com/wenjuanlu516/atoms-demo |
 | 公网 | https://wenjuanlu516.github.io/atoms-demo/ （GitHub Pages 静态演示，内置回放，免配 Key）。完整服务端管线见本地 / Docker。 |
 | 本地 | `cp .env.example .env && ./start.sh` → http://localhost:8000 |
+| 开发 | 后端 `:8000` + 前端 `npm run dev` → http://localhost:5173（预览与 SSE 走 Vite 代理） |
 | Docker | `docker compose up --build` |
 | 默认 | `LLM_MOCK=true`，三个内置示例不消耗 Key |
 | 真模型 | `LLM_MOCK=false` + 服务端 `LLM_API_KEY`（浏览器看不到 Key） |
@@ -17,8 +18,8 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 
 ## 三分钟怎么看
 
-1. 注册登录 → 选「番茄钟工作法」。
-2. 左栏看计划卡与角色接力；中栏文件生长、Monaco 跟写；右栏出来后点开始 / 加任务。
+1. 注册登录 → 选「番茄钟工作法」。左栏立刻出现用户消息和进度，不必重开项目。
+2. 接受计划后看 Emma → Bob → Alex → QA 接力；中栏文件生长、Monaco 跟写；右栏出来后加任务 / 开计时。
 3. 对话里说「加一个今日完成数」；文件树看「新 / 改」，可对比上一版；顶栏切版本回滚。
 4. 预览点「选择元素」，对 AI 说改一处；或直接改代码保存。
 5. Publish，打开 `/p/{slug}`。
@@ -27,10 +28,10 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 
 ## 为什么这样做
 
-- **服务端零执行生成代码。** 只存快照、装配静态文件。预览是沙箱 iframe（`allow-scripts`）。安全边界清楚，也避免评委机器上跑不可信代码。
-- **SSE + 进程内任务，不上队列。** 生成是单向事件流；断线用 Last-Event-ID。Demo 并发很小，少一套 Redis。
+- **服务端零执行生成代码。** 只存快照、装配静态文件。预览是沙箱 iframe（`allow-scripts allow-forms allow-modals`，无 `allow-same-origin`）。表单能提交，父页面 Cookie 读不到。生成代码里的 `localStorage` 由 hook 垫一层内存存储，避免沙箱 `SecurityError`。
+- **SSE + 轮询双通道，过程当时就能看见。** 生成事件走 SSE；角色正文同时落库。前端每秒把已落库的 Emma/Bob/Alex/QA 补进对话，代理卡住也不会只剩进度条。从「我的项目」点示例会带着当前轮次进工作台，不会冲掉聊天。
 - **LiteLLM 换模型，LangGraph 管状态机。** Mike 判断 minor 则跳过 Emma/Bob；QA blocker 最多回传 Alex 两轮。默认 Mock 保证无 Key 也能走完闭环。
-- **预览在「出站时」改写，而不是赌模型写出可跑 HTML。** React JSX / Vue SFC 在服务端编译进页面，注入 React/Vue 运行时。模型仍写常见工程文件，浏览器不必再拉 Babel / SFC loader。
+- **预览在「出站时」改写，而不是赌模型写出可跑 HTML。** 模型常写 `<script src="./src/App.jsx">` 或 Babel CDN。服务端拆掉本地模块 / `text/babel`，把 React JSX（含 `map` 块体）和 Vue SFC 编进页面，注入 UMD 运行时。单独去拉 `.jsx` 也会先编成 JS。浏览器不必再跑 Babel。
 - **版本是不可变快照。** 迭代、手改、回滚都是换指针；发布快照不带编辑 hook。
 
 ## 做到哪、没做哪
@@ -39,8 +40,8 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 |---|---|
 | A1 一键启动 | 有 `start.sh` / Compose |
 | A2 三句示例 → 应用 | Mock 与真模型均可；React/Vue 预览靠出站改写 |
-| A3 过程可见 | 角色卡、进度轨、多轮归档、排队 / 停止 |
-| A4 预览可点 | iframe 沙箱 |
+| A3 过程可见 | 角色卡实时回填、进度轨、多轮归档、排队 / 停止 |
+| A4 预览可点 | iframe 可点、可提交表单；番茄钟可加任务 |
 | A5 对话迭代 | 增量管线 + diff + 回滚并留聊天说明 |
 | A6 时长 | 过程先看见；真模型约 2–4 分钟，视文件数 |
 | A7 点选 | 能圈元素并对 AI 说；快捷条（改色 / 改尺寸）未做 |
@@ -51,4 +52,4 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 
 ## 怎么用 AI 做这个 Demo
 
-方案、LangGraph 节点、三栏 UI、预览改写都是人和模型对着真实失败迭代出来的（JSX 换行、Vue SFC、iframe 空白）。Prompt 放在 `backend/app/agent/`，白名单和静态 QA 在 `whitelist.py`。原则是：**模型负责写应用，平台负责让它跑起来、看得见、可回退。**
+方案、LangGraph 节点、三栏 UI、预览改写都是人和模型对着真实失败迭代出来的：JSX 当 JS 解析（`Unexpected token '<'`）、`map` 块体编译坏掉、iframe 禁表单导致「添加」没反应、角色卡只在重开项目时出现、沙箱里 `localStorage` 报错。Prompt 放在 `backend/app/agent/`，白名单和静态 QA 在 `whitelist.py`。原则是：**模型负责写应用，平台负责让它跑起来、看得见、可回退。**

@@ -28,18 +28,27 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         timeout: 0,
+        proxyTimeout: 0,
         configure: (proxy) => {
           proxy.on('proxyRes', (proxyRes, req) => {
             if (req.url?.includes('/stream')) {
               proxyRes.headers['cache-control'] = 'no-cache, no-transform'
               proxyRes.headers['x-accel-buffering'] = 'no'
               proxyRes.headers['connection'] = 'keep-alive'
+              const headers = proxyRes.headers
+              delete headers['content-length']
             }
           })
         },
       },
-      '/preview': 'http://127.0.0.1:8000',
-      '/p': 'http://127.0.0.1:8000',
+      '/preview': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/p': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

@@ -88,6 +88,7 @@ type ChatState = {
   beginRound: (kind: 'build' | 'iterate') => void
   addSystemNote: (content: string) => void
   hydrate: (items: { role: string; content: string }[], keepBusy?: boolean) => void
+  ingestMessages: (items: { role: string; content: string }[]) => void
   applyEvent: (event: string, data: Record<string, unknown>) => void
   clearApproval: () => void
   markPlan: (status: 'accepted' | 'rejected') => void
@@ -152,6 +153,34 @@ export const useChatStore = create<ChatState>((set) => ({
             : [],
         steps: keepBusy ? state.steps : [],
         statusLabel: keepBusy ? '团队继续中…' : '',
+      }
+    }),
+  ingestMessages: (items) =>
+    set((state) => {
+      const keys = new Set(
+        state.messages
+          .filter((item) => item.kind !== 'plan')
+          .map((item) => `${item.role}:${item.content.slice(0, 160)}`),
+      )
+      const extra: ChatMessage[] = []
+      for (const item of items) {
+        if (item.role === 'user' || !item.content.trim()) continue
+        const key = `${item.role}:${item.content.slice(0, 160)}`
+        if (keys.has(key)) continue
+        keys.add(key)
+        extra.push({
+          id: nextId(item.role),
+          role: item.role as ChatMessage['role'],
+          content: item.content,
+          createdAt: Date.now(),
+        })
+      }
+      if (!extra.length) return state
+      return {
+        messages: [
+          ...state.messages.map((item) => (item.streaming && item.kind !== 'plan' ? { ...item, streaming: false } : item)),
+          ...extra,
+        ],
       }
     }),
   addUserMessage: (content) =>
@@ -241,6 +270,16 @@ export const useChatStore = create<ChatState>((set) => ({
       if (event === 'agent_start') {
         const role = String(data.role) as AgentRole
         const title = String(data.title ?? '')
+        const steps = touchStep(state.steps.length ? state.steps : stepsFromPlan(state.pendingPlan), role, 'active')
+        const hasContent = state.messages.some(
+          (item) => item.role === role && item.kind !== 'plan' && Boolean(item.content),
+        )
+        if (hasContent) {
+          return { busy: true, activeRole: role, awaitingApproval: false, statusLabel: statusFor(role, title), steps }
+        }
+        if (state.messages.some((item) => item.role === role && item.streaming && item.kind !== 'plan')) {
+          return { busy: true, activeRole: role, awaitingApproval: false, statusLabel: statusFor(role, title), steps }
+        }
         const messages = state.messages.map((item) =>
           item.streaming && item.kind !== 'plan' ? { ...item, streaming: false, collapsed: true } : item,
         )
@@ -249,7 +288,7 @@ export const useChatStore = create<ChatState>((set) => ({
           activeRole: role,
           awaitingApproval: false,
           statusLabel: statusFor(role, title),
-          steps: touchStep(state.steps.length ? state.steps : stepsFromPlan(state.pendingPlan), role, 'active'),
+          steps,
           messages: [
             ...messages,
             {
@@ -275,7 +314,12 @@ export const useChatStore = create<ChatState>((set) => ({
           return item
         })
         if (!updated) {
-          messages.push({ id: nextId(role), role, content, createdAt: Date.now() })
+          const same = state.messages.some(
+            (item) => item.role === role && item.kind !== 'plan' && item.content === content,
+          )
+          if (!same && content) {
+            messages.push({ id: nextId(role), role, content, createdAt: Date.now() })
+          }
         }
         return {
           messages,

@@ -1,9 +1,46 @@
 (() => {
+  const makeStore = () => {
+    const mem = Object.create(null);
+    return {
+      getItem: (key) => (Object.prototype.hasOwnProperty.call(mem, key) ? mem[key] : null),
+      setItem: (key, value) => {
+        mem[String(key)] = String(value);
+      },
+      removeItem: (key) => {
+        delete mem[key];
+      },
+      clear: () => {
+        for (const key of Object.keys(mem)) delete mem[key];
+      },
+      key: (index) => Object.keys(mem)[index] || null,
+      get length() {
+        return Object.keys(mem).length;
+      },
+    };
+  };
+  const probe = (name) => {
+    try {
+      const store = window[name];
+      store.setItem("__atoms_probe", "1");
+      store.removeItem("__atoms_probe");
+    } catch {
+      Object.defineProperty(window, name, { configurable: true, value: makeStore() });
+    }
+  };
+  probe("localStorage");
+  probe("sessionStorage");
+
   const post = (type, payload) => {
     window.parent.postMessage({ __atoms: true, type, ...payload }, "*");
   };
 
+  window.addEventListener("load", () => window.scrollTo(0, 0));
+
   window.addEventListener("error", (event) => {
+    const message = String(event.message || "");
+    if (message.includes("localStorage") || message.includes("sessionStorage") || message.includes("sandboxed")) {
+      return;
+    }
     post("runtime_error", {
       message: event.message,
       source: (event.filename || "") + ":" + event.lineno,

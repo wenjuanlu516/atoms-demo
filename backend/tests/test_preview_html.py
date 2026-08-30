@@ -85,3 +85,87 @@ def test_static_html_untouched():
     out = rewrite_preview_html(html, files=[{"path": "index.html", "content": html}])
     assert "text/babel" not in out
     assert "react.production.min.js" not in out
+
+
+def test_rewrites_app_jsx_script_even_if_preview_marker_present():
+    html = """<!DOCTYPE html>
+<html lang="zh-CN" data-atoms-preview="1">
+<head>
+  <meta charset="UTF-8">
+  <title>番茄钟工作法</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="./src/App.jsx" type="module"></script>
+</body>
+</html>"""
+    files = [
+        {"path": "index.html", "content": html},
+        {
+            "path": "src/App.jsx",
+            "content": (
+                "import { useState } from 'react';\n"
+                "export default function App() {\n"
+                "  const [n, setN] = useState(0);\n"
+                "  return <h1>番茄钟</h1>;\n"
+                "}\n"
+            ),
+        },
+    ]
+    out = rewrite_preview_html(html, files=files)
+    assert 'src="./src/App.jsx"' not in out
+    assert "type=\"module\"" not in out or "importmap" in out
+    assert "React.createElement" in out
+    assert "番茄钟" in out
+    assert "react.production.min.js" in out
+
+
+def test_strips_inline_babel_and_does_not_double_createroot():
+    html = """<!doctype html><html><head>
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.26.10/babel.min.js"></script>
+</head><body><div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { createRoot } = ReactDOM;
+function App() { return <h1>欢迎</h1>; }
+createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body></html>"""
+    files = [
+        {"path": "index.html", "content": html},
+        {
+            "path": "src/App.jsx",
+            "content": "import { createRoot } from 'react-dom/client';\nfunction App(){return <h1>欢迎</h1>;}\ncreateRoot(document.getElementById('root')).render(<App />);\n",
+        },
+    ]
+    out = rewrite_preview_html(html, files=files)
+    assert "text/babel" not in out
+    assert "babel.min.js" not in out
+    assert out.count("const { createRoot }") == 1
+    assert "React.createElement" in out
+    assert "欢迎" in out
+
+
+def test_compiles_jsx_inside_plain_js_entry():
+    html = """<!doctype html><html><body><div id="root"></div>
+<script type="module" src="./src/index.js"></script></body></html>"""
+    files = [
+        {"path": "index.html", "content": html},
+        {
+            "path": "src/index.js",
+            "content": (
+                "import { createRoot } from 'react-dom/client';\n"
+                "import App from './App.jsx';\n"
+                "createRoot(document.getElementById('root')).render(<App />);\n"
+            ),
+        },
+        {
+            "path": "src/App.jsx",
+            "content": "export default function App() { return <p>ok</p>; }\n",
+        },
+    ]
+    out = rewrite_preview_html(html, files=files)
+    assert "<App" not in out
+    assert 'src="./src/index.js"' not in out
+    assert "React.createElement(App" in out

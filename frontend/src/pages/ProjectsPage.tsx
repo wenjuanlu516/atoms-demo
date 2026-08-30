@@ -5,6 +5,7 @@ import { ModelSelect } from '@/components/layout/ModelSelect'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { Button } from '@/components/ui/button'
 import { EXAMPLE_PROMPTS } from '@/lib/examples'
+import { useChatStore } from '@/stores/chatStore'
 import { useProjectStore } from '@/stores/projectStore'
 
 export function ProjectsPage() {
@@ -22,8 +23,15 @@ export function ProjectsPage() {
   const start = async (prompt: string, title?: string) => {
     setCreating(true)
     try {
+      const chat = useChatStore.getState()
+      chat.reset()
+      chat.beginRound('build')
+      chat.addUserMessage(prompt)
       const project = await create(prompt, title)
+      useProjectStore.getState().setKeepChatId(project.id)
       navigate(`/w/${project.id}`)
+    } catch {
+      useChatStore.getState().reset()
     } finally {
       setCreating(false)
     }

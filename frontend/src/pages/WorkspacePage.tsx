@@ -25,20 +25,23 @@ export function WorkspacePage() {
   const disconnectRef = useRef<(() => void) | null>(null)
   const keepChatForRef = useRef<number | null>(null)
   const sendingRef = useRef(false)
+  const bootRef = useRef(0)
 
   useEffect(() => {
-    if (pid && pid !== 'new' && keepChatForRef.current === Number(pid)) {
+    const boot = ++bootRef.current
+    const keepId = keepChatForRef.current ?? useProjectStore.getState().keepChatId
+    if (pid && pid !== 'new' && keepId === Number(pid)) {
       const id = Number(pid)
       void loadOne(id)
       disconnectRef.current?.()
       disconnectRef.current = attachStream(id, true)
-      const timer = window.setTimeout(() => {
-        if (keepChatForRef.current === id) keepChatForRef.current = null
-      }, 2500)
       return () => {
-        window.clearTimeout(timer)
-        disconnectRef.current?.()
+        if (bootRef.current === boot) disconnectRef.current?.()
       }
+    }
+    if (keepId != null && pid && keepId !== Number(pid) && pid !== 'new') {
+      useProjectStore.getState().setKeepChatId(null)
+      keepChatForRef.current = null
     }
 
     resetChat()
@@ -53,15 +56,14 @@ export function WorkspacePage() {
     void (async () => {
       await loadOne(id)
       const detail = await getProject(id)
+      if (bootRef.current !== boot) return
       const live = detail.status === 'generating' || detail.status === 'iterating'
-      hydrateChat(
-        live ? detail.messages.filter((item) => item.role === 'user') : detail.messages,
-        live,
-      )
+      hydrateChat(detail.messages, live)
       if (detail.current_version > 0) {
         usePreviewStore.getState().setUrl(`/preview/${id}/v${detail.current_version}/index.html`)
       }
-      disconnectRef.current = attachStream(id, live)
+      const hasAgents = detail.messages.some((item) => item.role !== 'user' && item.role !== 'system')
+      disconnectRef.current = attachStream(id, live && !hasAgents)
       if (live) {
         const pending = planFromMessages(detail.messages)
         useChatStore.setState({
@@ -76,7 +78,7 @@ export function WorkspacePage() {
       }
     })()
     return () => {
-      disconnectRef.current?.()
+      if (bootRef.current === boot) disconnectRef.current?.()
     }
   }, [pid, loadOne, clearCurrent, resetChat, resetPreview, hydrateChat])
 
@@ -93,6 +95,7 @@ export function WorkspacePage() {
       if (!pid || pid === 'new') {
         const project = await create(text)
         keepChatForRef.current = project.id
+        useProjectStore.getState().setKeepChatId(project.id)
         disconnectRef.current?.()
         disconnectRef.current = attachStream(project.id, true)
         navigate(`/w/${project.id}`, { replace: true })
@@ -129,10 +132,14 @@ export function WorkspacePage() {
         const chat = useChatStore.getState()
         if (!chat.busy) return
         const agents = detail.messages.filter((item) => item.role !== 'user')
+        chat.ingestMessages(detail.messages)
         chat.syncStepsFromMessages(agents)
         const pending = planFromMessages(detail.messages)
         if (pending && !chat.awaitingApproval && !chat.messages.some((item) => item.kind === 'plan')) {
           chat.applyEvent('plan_ready', pending)
+        }
+        if (detail.current_version > 0 && !usePreviewStore.getState().url) {
+          usePreviewStore.getState().setUrl(`/preview/${id}/v${detail.current_version}/index.html`)
         }
         if (detail.status === 'idle' || detail.status === 'published') {
           if (detail.current_version > 0) {

@@ -51,7 +51,7 @@ export function PreviewPanel() {
   }, [selectMode, url])
 
   return (
-    <section className="flex h-full min-w-0 flex-col bg-ink">
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-ink">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <p className="text-xs font-medium uppercase tracking-wider text-mist">Preview</p>
         <div className="flex gap-1">
@@ -106,23 +106,31 @@ export function PreviewPanel() {
           </Button>
         </form>
       )}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,#1a1f2c,transparent_55%)] p-4">
+      <div className="relative flex min-h-0 flex-1 items-stretch justify-center overflow-hidden bg-[radial-gradient(circle_at_top,#1a1f2c,transparent_55%)] p-4">
         {!url ? (
-          <p className="max-w-xs text-center text-sm text-mist">生成完成后，应用会在这里即时运行。</p>
+          <p className="m-auto max-w-xs text-center text-sm text-mist">生成完成后，应用会在这里即时运行。</p>
         ) : (
           <div
             className={cn(
-              'relative overflow-hidden rounded-xl border border-line bg-panel shadow-2xl',
-              viewport === 'mobile' ? 'h-[640px] w-[375px]' : 'h-full w-full',
+              'relative min-h-0 overflow-hidden rounded-xl border border-line bg-panel shadow-2xl',
+              viewport === 'mobile' ? 'h-[min(640px,100%)] w-[375px]' : 'h-full w-full',
             )}
           >
             <iframe
               ref={frameRef}
+              key={url}
               title="App Viewer"
               src={url}
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-forms allow-modals"
               className="h-full w-full border-0 bg-white"
-              onLoad={() => usePreviewStore.getState().markReady()}
+              onLoad={() => {
+                usePreviewStore.getState().markReady()
+                try {
+                  frameRef.current?.contentWindow?.scrollTo(0, 0)
+                } catch {
+                  /* sandboxed */
+                }
+              }}
             />
             {ready && (
               <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-cyan/20 px-2 py-1 text-[10px] text-cyan">

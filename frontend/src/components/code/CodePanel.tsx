@@ -15,7 +15,7 @@ export function CodePanel() {
   const file = files.find((item) => item.path === activePath) ?? null
 
   return (
-    <section className="flex h-full min-w-0 flex-col border-r border-line bg-canvas">
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-line bg-canvas">
       <div className="border-b border-line px-3 py-2 text-xs font-medium uppercase tracking-wider text-mist">
         Code
       </div>

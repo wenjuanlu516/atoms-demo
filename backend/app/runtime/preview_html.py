@@ -55,11 +55,23 @@ ABS_ASSET = re.compile(
     r"""(?P<attr>src|href)=(?P<q>['"])/(?P<path>(?:src|assets|public)/[^'"]+)(?P=q)"""
 )
 JSX_SCRIPT = re.compile(
-    r"""<script\b[^>]*\bsrc=['"][^'"]+\.(?:jsx|tsx)['"][^>]*>\s*</script>""",
+    r"""<script\b[^>]*\bsrc\s*=\s*['"][^'"]+\.(?:jsx|tsx)['"][^>]*>\s*</script>""",
     re.I,
 )
 LOCAL_APP_SCRIPT = re.compile(
-    r"""<script\b[^>]*\bsrc=['"](?!https?:)(?![^'"]*__atoms_hook)[^'"]+\.(?:js|mjs|jsx|tsx|vue)['"][^>]*>\s*</script>""",
+    r"""<script\b(?![^>]*__atoms_hook)[^>]*\bsrc\s*=\s*['"](?!https?:|//)[^'"]+\.(?:js|mjs|jsx|tsx|vue)['"][^>]*>\s*</script>""",
+    re.I,
+)
+INLINE_MODULE = re.compile(
+    r"""<script\b(?![^>]*type=['"]importmap['"])[^>]*\btype=['"]module['"][^>]*>.*?</script>""",
+    re.I | re.S,
+)
+BABEL_INLINE = re.compile(
+    r"""<script\b[^>]*type=['"]text/babel['"][^>]*>.*?</script>""",
+    re.I | re.S,
+)
+BABEL_CDN = re.compile(
+    r"""<script\b[^>]*\bsrc=['"][^'"]*babel[^'"]*['"][^>]*>\s*</script>""",
     re.I,
 )
 IMPORT_LINE = re.compile(
@@ -73,6 +85,10 @@ EXPORT_DEFAULT_NAME = re.compile(r"export\s+default\s+(?P<name>\w+)\s*;?")
 EXPORT_KW = re.compile(r"export\s+(?=async\s+)?(?=function|class|const|let|var)\s*")
 REACT_DESTRUCTURE = re.compile(
     r"^[ \t]*const[ \t]*\{([^}]+)\}[ \t]*=[ \t]*React[ \t]*;?[ \t]*$",
+    re.M,
+)
+REACTDOM_DESTRUCTURE = re.compile(
+    r"^[ \t]*const[ \t]*\{([^}]+)\}[ \t]*=[ \t]*ReactDOM[ \t]*;?[ \t]*$",
     re.M,
 )
 MODULE_SUFFIXES = {".jsx", ".tsx", ".js", ".mjs", ".ts"}
@@ -110,6 +126,48 @@ def _rewrite_abs_paths(html: str) -> str:
 
 def _jsx_paths(file_map: dict[str, str]) -> list[str]:
     return sorted(p for p in file_map if p.endswith((".jsx", ".tsx")))
+
+
+def _looks_like_react(file_map: dict[str, str]) -> bool:
+    if _jsx_paths(file_map):
+        return True
+    blob = "\n".join(file_map.values())
+    return bool(
+        re.search(r"""from\s+['"]react(?:-dom)?(?:/client)?['"]""", blob)
+        or "React.createElement" in blob
+        or "ReactDOM.createRoot" in blob
+    )
+
+
+def _already_bundled(html: str) -> bool:
+    if 'data-atoms-preview="1"' not in html:
+        return False
+    has_runtime = "react.production.min.js" in html or "vue.global.prod.js" in html
+    has_boot = "__atomsRoot" in html or "createApp(" in html or "React.createElement" in html
+    leftover = (
+        JSX_SCRIPT.search(html)
+        or LOCAL_APP_SCRIPT.search(html)
+        or INLINE_MODULE.search(html)
+        or BABEL_INLINE.search(html)
+        or BABEL_CDN.search(html)
+    )
+    return has_runtime and has_boot and not leftover
+
+
+def _strip_app_scripts(html: str) -> str:
+    html = JSX_SCRIPT.sub("", html)
+    html = LOCAL_APP_SCRIPT.sub("", html)
+    html = INLINE_MODULE.sub("", html)
+    html = BABEL_INLINE.sub("", html)
+    html = BABEL_CDN.sub("", html)
+    return html
+
+
+def compile_preview_module(path: str, source: str) -> str:
+    suffix = Path(path).suffix.lower()
+    if suffix in {".jsx", ".tsx", ".js", ".mjs", ".ts"}:
+        return compile_jsx(source)
+    return source
 
 
 def _vue_paths(file_map: dict[str, str]) -> list[str]:
@@ -201,12 +259,21 @@ def _parse_import_clause(
     return ""
 
 
-def _hoist_react_destructures(source: str, react_binds: dict[str, str]) -> str:
-    def take(match: re.Match[str]) -> str:
+def _hoist_react_destructures(
+    source: str, react_binds: dict[str, str], dom_names: set[str]
+) -> str:
+    def take_react(match: re.Match[str]) -> str:
         _collect_named(match.group(1), react_binds)
         return ""
 
-    return REACT_DESTRUCTURE.sub(take, source)
+    def take_dom(match: re.Match[str]) -> str:
+        dest: dict[str, str] = {}
+        _collect_named(match.group(1), dest)
+        dom_names.update(dest)
+        return ""
+
+    source = REACT_DESTRUCTURE.sub(take_react, source)
+    return REACTDOM_DESTRUCTURE.sub(take_dom, source)
 
 
 def _react_prelude(react_binds: dict[str, str], dom_names: set[str]) -> str:
@@ -253,7 +320,7 @@ def _demodule(
         return ""
 
     source = IMPORT_LINE.sub(repl, source)
-    source = _hoist_react_destructures(source, react_binds)
+    source = _hoist_react_destructures(source, react_binds, dom_names)
     return source, default_name
 
 
@@ -313,7 +380,7 @@ if (__atomsRoot && typeof {component} !== 'undefined') {{
   ReactDOM.createRoot(__atomsRoot).render(React.createElement({component}));
 }}
 """
-    bundle += "\ndocument.getElementById('__atoms_boot')?.remove();\n"
+    bundle += "\ndocument.getElementById('__atoms_boot')?.remove();\nwindow.scrollTo(0, 0);\n"
     return bundle
 
 
@@ -333,21 +400,20 @@ def rewrite_preview_html(
     elif root is not None:
         file_map = _file_map_from_root(root)
 
-    if 'data-atoms-preview="1"' in html:
+    if _already_bundled(html):
         return html
     result = _rewrite_abs_paths(html)
-    jsx = _jsx_paths(file_map)
+    jsx = _looks_like_react(file_map)
     vue = _vue_paths(file_map)
     if jsx:
-        result = JSX_SCRIPT.sub("", result)
-        result = LOCAL_APP_SCRIPT.sub("", result)
+        result = _strip_app_scripts(result)
         result = _ensure_css_links(result, file_map)
         if "react.production.min.js" not in result:
             result = _insert_in_head(result, REACT_RUNTIME)
         if "__atomsRoot" not in result:
             result = _insert_before_body_end(result, _script_tag(_bundle_jsx(file_map)))
     elif vue:
-        result = LOCAL_APP_SCRIPT.sub("", result)
+        result = _strip_app_scripts(result)
         result = _ensure_css_links(result, file_map)
         if "vue.global.prod.js" not in result:
             result = _insert_in_head(result, VUE_RUNTIME)
