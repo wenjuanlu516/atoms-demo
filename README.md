@@ -2,6 +2,8 @@
 
 Chat-first multi-agent app builder. Describe a product in one sentence; a visible AI team (Mike / Emma / Bob / Alex / QA) generates a runnable web app in the browser.
 
+评委说明见 [WRITEUP.md](./WRITEUP.md)。
+
 ## Quick start
 
 ```bash

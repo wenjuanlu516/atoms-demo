@@ -18,5 +18,6 @@
 ## 提交项
 
 - [ ] **公网可测链接**（A9）：Docker 部署 + 服务端 Key，评委免配环境。
-- [ ] 公开 GitHub 仓库。
-- [ ] 一页 writeup + 3 分钟演示录屏兜底。
+- [x] 公开 GitHub 仓库。
+- [x] 一页 writeup（[WRITEUP.md](./WRITEUP.md)）。
+- [ ] 3 分钟演示录屏兜底。
