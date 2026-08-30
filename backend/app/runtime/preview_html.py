@@ -71,6 +71,11 @@ EXPORT_DEFAULT_FN = re.compile(r"export\s+default\s+function\s+(?P<name>\w+)")
 EXPORT_DEFAULT_CLASS = re.compile(r"export\s+default\s+class\s+(?P<name>\w+)")
 EXPORT_DEFAULT_NAME = re.compile(r"export\s+default\s+(?P<name>\w+)\s*;?")
 EXPORT_KW = re.compile(r"export\s+(?=async\s+)?(?=function|class|const|let|var)\s*")
+REACT_DESTRUCTURE = re.compile(
+    r"^[ \t]*const[ \t]*\{([^}]+)\}[ \t]*=[ \t]*React[ \t]*;?[ \t]*$",
+    re.M,
+)
+MODULE_SUFFIXES = {".jsx", ".tsx", ".js", ".mjs", ".ts"}
 
 
 def _file_map_from_root(root: Path) -> dict[str, str]:
@@ -152,36 +157,74 @@ def _needs_import_map(html: str, file_map: dict[str, str]) -> bool:
     return "from 'react'" in blob or 'from "react"' in blob or "react-dom" in blob
 
 
-def _parse_import_clause(clause: str, spec: str) -> str:
+def _collect_named(inner: str, dest: dict[str, str]) -> None:
+    for part in inner.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if re.search(r"\sas\s", part):
+            orig, alias = re.split(r"\s+as\s+", part, maxsplit=1)
+            dest[alias.strip()] = orig.strip()
+        elif ":" in part:
+            orig, _, alias = part.partition(":")
+            dest[alias.strip()] = orig.strip()
+        else:
+            dest[part] = part
+
+
+def _parse_import_clause(
+    clause: str, spec: str, react_binds: dict[str, str], dom_names: set[str]
+) -> str:
     clause = clause.strip()
-    if spec in {"react", "react/jsx-runtime"}:
+    if spec == "react/jsx-runtime":
+        return ""
+    if spec == "react":
         star = re.match(r"\*\s+as\s+(\w+)$", clause)
         if star:
-            return f"const {star.group(1)} = React;"
+            return f"var {star.group(1)} = React;"
         default, _, named = clause.partition("{")
         default = default.replace(",", "").strip()
         lines = []
         if default and default != "React":
-            lines.append(f"const {default} = React;")
+            lines.append(f"var {default} = React;")
         if named:
-            names = named.replace("}", "")
-            lines.append(f"const {{{names}}} = React;")
+            _collect_named(named.replace("}", ""), react_binds)
         return "\n".join(lines)
     if spec in {"react-dom", "react-dom/client"}:
-        if "createRoot" in clause or "*" in clause or clause in {"ReactDOM", "ReactDom"}:
-            return "const { createRoot } = ReactDOM;"
+        if "createRoot" in clause or "*" in clause:
+            dom_names.add("createRoot")
         default, _, named = clause.partition("{")
         default = default.replace(",", "").strip()
-        lines = []
-        if default:
-            lines.append(f"const {default} = ReactDOM;")
-        if named:
-            lines.append(f"const {{{named.replace('}', '')}}} = ReactDOM;")
-        return "\n".join(lines)
+        if default and default not in {"ReactDOM", "ReactDom"}:
+            return f"var {default} = ReactDOM;"
+        return ""
     return ""
 
 
-def _demodule(source: str) -> tuple[str, str | None]:
+def _hoist_react_destructures(source: str, react_binds: dict[str, str]) -> str:
+    def take(match: re.Match[str]) -> str:
+        _collect_named(match.group(1), react_binds)
+        return ""
+
+    return REACT_DESTRUCTURE.sub(take, source)
+
+
+def _react_prelude(react_binds: dict[str, str], dom_names: set[str]) -> str:
+    lines: list[str] = []
+    same = sorted(name for name, orig in react_binds.items() if name == orig)
+    if same:
+        lines.append("const { " + ", ".join(same) + " } = React;")
+    for name, orig in sorted(react_binds.items()):
+        if name != orig:
+            lines.append(f"const {name} = React.{orig};")
+    if dom_names:
+        lines.append("const { " + ", ".join(sorted(dom_names)) + " } = ReactDOM;")
+    return ("\n".join(lines) + "\n") if lines else ""
+
+
+def _demodule(
+    source: str, react_binds: dict[str, str], dom_names: set[str]
+) -> tuple[str, str | None]:
     default_name: str | None = None
     fn = EXPORT_DEFAULT_FN.search(source)
     if fn:
@@ -206,15 +249,25 @@ def _demodule(source: str) -> tuple[str, str | None]:
             return ""
         clause = match.group("clause")
         if clause:
-            return _parse_import_clause(clause, spec)
+            return _parse_import_clause(clause, spec, react_binds, dom_names)
         return ""
 
     source = IMPORT_LINE.sub(repl, source)
+    source = _hoist_react_destructures(source, react_binds)
     return source, default_name
 
 
+def _module_paths(file_map: dict[str, str]) -> list[str]:
+    paths = [
+        path
+        for path in file_map
+        if Path(path).suffix.lower() in MODULE_SUFFIXES and not Path(path).name.startswith("__")
+    ]
+    return sorted(paths)
+
+
 def _topo_jsx(file_map: dict[str, str]) -> list[str]:
-    paths = _jsx_paths(file_map)
+    paths = _module_paths(file_map)
     dependents: dict[str, set[str]] = {p: set() for p in paths}
     for path in paths:
         for spec in re.findall(r"""from\s+['"]([^'"]+)['"]""", file_map[path]):
@@ -242,13 +295,15 @@ def _bundle_jsx(file_map: dict[str, str]) -> str:
     chunks: list[str] = []
     default_name: str | None = None
     has_mount = False
+    react_binds: dict[str, str] = {}
+    dom_names: set[str] = set()
     for path in _topo_jsx(file_map):
-        body, name = _demodule(file_map[path])
+        body, name = _demodule(file_map[path], react_binds, dom_names)
         default_name = name or default_name
         if "createRoot(" in body or "ReactDOM.render(" in body:
             has_mount = True
         chunks.append(f"/* {path} */\n{body.strip()}\n")
-    bundle = "\n".join(chunks)
+    bundle = _react_prelude(react_binds, dom_names) + "\n".join(chunks)
     bundle = compile_jsx(bundle)
     if not has_mount:
         component = default_name or "__DefaultExport"
