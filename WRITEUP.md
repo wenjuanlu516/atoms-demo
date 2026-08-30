@@ -7,12 +7,13 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 | | |
 |---|---|
 | 仓库 | https://github.com/wenjuanlu516/atoms-demo |
+| 公网 | 用仓库里的 `render.yaml` 部署到 Render 免费档（见 README 一键按钮）。默认 `LLM_MOCK=true`，评委免配 Key。免费实例闲置会休眠，首次打开请等 30–60 秒；磁盘不持久，重启后数据会清空。 |
 | 本地 | `cp .env.example .env && ./start.sh` → http://localhost:8000 |
 | Docker | `docker compose up --build` |
 | 默认 | `LLM_MOCK=true`，三个内置示例不消耗 Key |
 | 真模型 | `LLM_MOCK=false` + 服务端 `LLM_API_KEY`（浏览器看不到 Key） |
 
-公网评测链接（A9）尚未上线，评委请用上面任一方式本地跑；故障时以本页脚本 + 录屏兜底。
+故障时以本页脚本 + 录屏 + 本地 `./start.sh` 兜底。
 
 ## 三分钟怎么看
 
@@ -43,10 +44,10 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 | A5 对话迭代 | 增量管线 + diff + 回滚并留聊天说明 |
 | A6 时长 | 过程先看见；真模型约 2–4 分钟，视文件数 |
 | A7 点选 | 能圈元素并对 AI 说；快捷条（改色 / 改尺寸）未做 |
-| A8 / A10 账户与持久化 | JWT + 用户隔离；SQLite 存项目 / 消息 / 版本 / 发布 |
-| A9 公网 | **未部署** |
+| A8 / A10 账户与持久化 | JWT + 用户隔离；SQLite 存项目 / 消息 / 版本 / 发布。公网免费档无持久盘，以本地 / Compose 卷为准。 |
+| A9 公网 | Render 免费 Web Service；一键按钮在 README |
 
-未做：运行时 CDN 本地化、slowapi 日限额、Race Mode。点选目前是「选中 → 一句话」，不是完整快捷条。
+未做：运行时 CDN 本地化、Race Mode。点选目前是「选中 → 一句话」，不是完整快捷条。公网默认 Mock，每 IP 每日 5 次生成。
 
 ## 怎么用 AI 做这个 Demo
 

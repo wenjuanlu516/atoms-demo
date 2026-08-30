@@ -5,11 +5,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api import api_router
 from app.api.preview import router as preview_router
 from app.config import get_settings
 from app.models import init_db
+from app.services.limiter import limiter, rate_limit_handler
 from app.services.task_manager import TaskManager
 
 settings = get_settings()
@@ -24,6 +27,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Atoms Demo", version="0.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
+
+if settings.app_env == "production":
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 if settings.app_env != "production":
     app.add_middleware(

@@ -4,6 +4,8 @@ Chat-first multi-agent app builder. Describe a product in one sentence; a visibl
 
 评委说明见 [WRITEUP.md](./WRITEUP.md)。
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/wenjuanlu516/atoms-demo)
+
 ## Quick start
 
 ```bash
@@ -38,6 +40,12 @@ npm run dev            # :5173, proxies /api /preview /p → :8000
 cp .env.example .env
 docker compose up --build
 ```
+
+### Public (Render)
+
+点上方 Deploy to Render，用 GitHub 登录后按 Blueprint 创建免费 Web Service。默认 `LLM_MOCK=true`，评委不用自备 Key。闲置会休眠，第一次打开等半分钟。免费档没有持久盘，重启后数据会丢。
+
+要在公网走真模型：在 Render 环境变量里设 `LLM_MOCK=false` 和 `LLM_API_KEY`（不要写进仓库）。
 
 ## LLM configuration
 

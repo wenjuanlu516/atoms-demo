@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: atoms-demo
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LLM_MOCK
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATA_DIR
+        value: /app/data
+      - key: DATABASE_URL
+        value: sqlite:////app/data/atoms.db
+      - key: FRONTEND_DIST
+        value: /app/frontend_dist
+      - key: RATE_LIMIT_DAILY
+        value: "5"
+      - key: MAX_CONCURRENT_TASKS
+        value: "3"

@@ -17,7 +17,8 @@
 
 ## 提交项
 
-- [ ] **公网可测链接**（A9）：Docker 部署 + 服务端 Key，评委免配环境。
+- [ ] **公网可测链接**（A9）：`render.yaml` 已就绪，待 Render 构建出 URL。
 - [x] 公开 GitHub 仓库。
 - [x] 一页 writeup（[WRITEUP.md](./WRITEUP.md)）。
+- [x] 公网日限额（slowapi，每 IP 每日 5 次生成）。
 - [ ] 3 分钟演示录屏兜底。

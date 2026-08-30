@@ -13,6 +13,7 @@ from app.models import Message, Project, ProjectFile, ProjectVersion, Publish, U
 from pydantic import BaseModel
 
 from app.schemas import ApproveBody, FileUpdate, MessageCreate, ProjectCreate, ProjectDetail, ProjectOut, VersionOut
+from app.services.limiter import generate_limit, limiter
 from app.services.security import decode_access_token, get_current_user
 from app.services.task_manager import TaskManager
 
@@ -50,7 +51,9 @@ def list_projects(user: User = Depends(get_current_user), db: Session = Depends(
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
+@limiter.shared_limit(generate_limit, scope="generate")
 async def create_project(
+    request: Request,
     body: ProjectCreate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -148,7 +151,9 @@ async def stream_project(
 
 
 @router.post("/{pid}/messages", response_model=ProjectOut)
+@limiter.shared_limit(generate_limit, scope="generate")
 async def post_message(
+    request: Request,
     pid: int,
     body: MessageCreate,
     user: User = Depends(get_current_user),
@@ -296,7 +301,9 @@ def rollback_project(
 
 
 @router.post("/{pid}/fix")
+@limiter.shared_limit(generate_limit, scope="generate")
 async def fix_project(
+    request: Request,
     pid: int,
     body: FixBody,
     user: User = Depends(get_current_user),

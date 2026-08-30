@@ -21,11 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./
 COPY --from=frontend /app/frontend/dist /app/frontend_dist
-
-RUN mkdir -p /app/data/preview /app/data/publish
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && mkdir -p /app/data/preview /app/data/publish
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"
+  CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/api/health' % os.environ.get('PORT','8000'))"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/entrypoint.sh"]
