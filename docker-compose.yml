@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      FRONTEND_DIST: /app/frontend_dist
+      DATA_DIR: /app/data
+      DATABASE_URL: sqlite:////app/data/atoms.db
+    volumes:
+      - atoms-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  atoms-data:

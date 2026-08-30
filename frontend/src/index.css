@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-ink: #07080c;
+  --color-canvas: #0c0e14;
+  --color-panel: #12151d;
+  --color-raised: #181c27;
+  --color-line: #262c3a;
+  --color-line-strong: #343b4d;
+  --color-mist: #8b93a7;
+  --color-fog: #c5cad6;
+  --color-snow: #eef0f5;
+  --color-accent: #7c6af7;
+  --color-accent-soft: #a99bff;
+  --color-cyan: #3ee0c9;
+  --color-amber: #f5b942;
+  --color-rose: #f0718a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-snow);
+  background: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a3142;
+  border-radius: 999px;
+}
+
+.prose-atoms p {
+  margin: 0 0 0.6em;
+}
+
+.prose-atoms p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-atoms ul {
+  margin: 0.4em 0 0.6em;
+  padding-left: 1.1em;
+  list-style: disc;
+}
+
+.prose-atoms h2,
+.prose-atoms h3 {
+  margin: 0.6em 0 0.35em;
+  color: var(--color-snow);
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.prose-atoms code {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--color-accent-soft);
+}
+
+.prose-atoms pre {
+  overflow: auto;
+  margin: 0.5em 0 0;
+  padding: 0.75em;
+  border-radius: 0.75rem;
+  background: #0b0d12;
+  color: var(--color-fog);
+}

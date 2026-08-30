@@ -1,0 +1,33 @@
+# env & secrets
+.env
+.env.local
+*.pem
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# data
+backend/atoms.db
+backend/data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ide / os
+.DS_Store
+.idea/
+.vscode/
+*.swp
