@@ -11,7 +11,14 @@ def _enabled() -> bool:
     return get_settings().app_env == "production"
 
 
-limiter = Limiter(key_func=get_remote_address, enabled=_enabled(), headers_enabled=True)
+# Do not write X-RateLimit headers: limited routes return Pydantic models,
+# and slowapi crashes with 500 if it tries to set headers on a non-Response.
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=_enabled(),
+    headers_enabled=False,
+    swallow_errors=True,
+)
 
 
 def generate_limit() -> str:
