@@ -13,8 +13,34 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 | Docker | `docker compose up --build` |
 | 默认 | `LLM_MOCK=true`，三个内置示例不消耗 Key |
 | 真模型 | `LLM_MOCK=false` + 服务端 `LLM_API_KEY`（浏览器看不到 Key） |
+| 腾讯云 | http://111.230.155.101:8000 （轻量 Docker）。默认 Mock；真模型见下方 |
 
 故障时以本页脚本 + 录屏 + 本地 `./start.sh` 兜底。
+
+## 腾讯云轻量：走真模型
+
+服务器已经 `docker compose` 跑着时，不要改仓库里的 `.env.example`。SSH 登录后：
+
+```bash
+nano ~/atoms-demo/.env
+```
+
+至少改这两行（Key 只放服务器，不要提交）：
+
+```bash
+LLM_MOCK=false
+LLM_API_KEY=sk-你的key
+LLM_MODEL=deepseek/deepseek-chat
+```
+
+然后重启容器（不用 `--build`，只重载环境变量）：
+
+```bash
+cd ~/atoms-demo
+sudo docker compose up -d
+```
+
+`curl -sS http://127.0.0.1:8000/api/health` 里应看到 `"llm_mock":false`。浏览器打开 http://111.230.155.101:8000 硬刷新。更新代码则 `git pull` 后再 `sudo docker compose up -d --build`。
 
 ## 三分钟怎么看
 
@@ -46,7 +72,7 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 | A6 时长 | 过程先看见；真模型约 2–4 分钟，视文件数 |
 | A7 点选 | 能圈元素并对 AI 说；快捷条（改色 / 改尺寸）未做 |
 | A8 / A10 账户与持久化 | JWT + 用户隔离；SQLite 存项目 / 消息 / 版本 / 发布。公网免费档无持久盘，以本地 / Compose 卷为准。 |
-| A9 公网 | https://wenjuanlu516.github.io/atoms-demo/ ；静态回放。真模型请本地跑 |
+| A9 公网 | Pages 静态回放；完整管线 http://111.230.155.101:8000 。真模型改服务器 `~/atoms-demo/.env` 后 `sudo docker compose up -d` |
 
 未做：运行时 CDN 本地化、Race Mode。点选目前是「选中 → 一句话」，不是完整快捷条。公网默认 Mock，每 IP 每日 5 次生成。
 

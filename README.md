@@ -50,6 +50,37 @@ docker compose up --build
 
 要在公网走真模型：在 Render 环境变量里设 `LLM_MOCK=false` 和 `LLM_API_KEY`（不要写进仓库）。
 
+### 腾讯云轻量（已有 Docker 服务）
+
+完整管线：http://111.230.155.101:8000  
+
+更新代码：
+
+```bash
+cd ~/atoms-demo
+git pull --ff-only origin main
+sudo docker compose up -d --build
+```
+
+走真模型（只改服务器上的 `.env`，不要提交 Key）：
+
+```bash
+nano ~/atoms-demo/.env
+```
+
+```bash
+LLM_MOCK=false
+LLM_API_KEY=sk-你的key
+LLM_MODEL=deepseek/deepseek-chat
+```
+
+```bash
+cd ~/atoms-demo
+sudo docker compose up -d
+```
+
+`curl -sS http://127.0.0.1:8000/api/health` 应返回 `"llm_mock":false`。
+
 ## LLM configuration
 
 | Mode | How |
