@@ -1,9 +1,30 @@
+import { playMockGeneration, playMockIterate } from '@/lib/mockPlayback'
+import { persistProjectSnapshot } from '@/lib/staticApi'
+import { isStaticDemo } from '@/lib/staticMode'
 import { connectSse } from '@/lib/sseClient'
 import { useChatStore } from '@/stores/chatStore'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useProjectStore } from '@/stores/projectStore'
 
 export function attachStream(id: number, replay = true) {
+  if (isStaticDemo()) {
+    const controller = new AbortController()
+    const version = useProjectStore.getState().current?.current_version ?? 0
+    const play = version < 1 ? playMockGeneration : playMockIterate
+    void play(controller.signal)
+      .then(() => {
+        persistProjectSnapshot(id)
+        useProjectStore.getState().setStatus('idle')
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        useChatStore.getState().applyEvent('error', {
+          message: error instanceof Error ? error.message : '演示回放失败',
+        })
+        useProjectStore.getState().setStatus('idle')
+      })
+    return () => controller.abort()
+  }
   const applyEvent = useChatStore.getState().applyEvent
   const applyFileWrite = useProjectStore.getState().applyFileWrite
   const setVersion = useProjectStore.getState().setVersion

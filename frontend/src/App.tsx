@@ -36,8 +36,10 @@ export default function App() {
     void loadSettings()
   }, [hydrate, loadSettings])
 
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '')
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename || undefined}>
       <Routes>
         <Route element={<Guest />}>
           <Route path="/login" element={<AuthPage mode="login" />} />

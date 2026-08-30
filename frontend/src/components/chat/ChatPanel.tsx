@@ -5,6 +5,7 @@ import { ExampleCards } from '@/components/chat/ExampleCards'
 import { MessageInput } from '@/components/chat/MessageInput'
 import { ProgressTrack } from '@/components/chat/ProgressTrack'
 import { approveProject } from '@/lib/api'
+import { isStaticDemo } from '@/lib/staticMode'
 import { useChatStore } from '@/stores/chatStore'
 import { useProjectStore } from '@/stores/projectStore'
 
@@ -51,6 +52,11 @@ export function ChatPanel({
   return (
     <section className="flex h-full min-w-0 flex-col border-r border-line bg-panel">
       <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-4">
+        {isStaticDemo() && (
+          <p className="rounded-lg border border-line bg-raised px-3 py-2 text-[11px] leading-5 text-mist">
+            GitHub Pages 静态演示：生成走内置回放，数据存在本机浏览器。完整管线请本地 <code className="text-fog">./start.sh</code>。
+          </p>
+        )}
         {empty && (
           <div className="px-0.5">
             <p className="text-sm font-medium text-snow">从一句话开始</p>

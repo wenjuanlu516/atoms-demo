@@ -221,3 +221,58 @@ export async function playMockGeneration(signal?: AbortSignal) {
   emit('version', { version: 1, summary: '首次生成 · 番茄钟' })
   emit('done', { status: 'success', stats: { tokens: 12800, duration: 8 } })
 }
+
+export async function playMockIterate(signal?: AbortSignal) {
+  const chat = useChatStore.getState()
+  const project = useProjectStore.getState()
+  const preview = usePreviewStore.getState()
+  project.setStatus('iterating')
+
+  const emit = (event: string, data: Record<string, unknown>) => {
+    chat.applyEvent(event, data)
+    if (event === 'file_write') {
+      project.applyFileWrite(String(data.path), String(data.content ?? ''), String(data.action ?? 'create'))
+    }
+    if (event === 'version') {
+      project.setVersion(Number(data.version ?? 2))
+      preview.setUrl(buildMockPreviewUrl())
+    }
+  }
+
+  await sleep(350, signal)
+  emit('agent_start', { role: 'mike', title: '判断改动范围' })
+  await sleep(500, signal)
+  emit('agent_message', {
+    role: 'mike',
+    content_md: '**执行计划**\n\n1. 仅改统计展示\n\n变更级别：`minor`',
+  })
+  await sleep(300, signal)
+  emit('agent_start', { role: 'alex', title: '改代码' })
+  const next = {
+    path: 'src/App.jsx',
+    content: `import React, { useState } from 'react'
+import Timer from './components/Timer.jsx'
+import TaskList from './components/TaskList.jsx'
+
+export default function App() {
+  const [done, setDone] = useState(0)
+  return (
+    <main className="app">
+      <h1>Focus</h1>
+      <p className="stats">今日完成 {done} 个番茄 · 本轮迭代已加上统计条</p>
+      <Timer onComplete={() => setDone((n) => n + 1)} />
+      <TaskList />
+    </main>
+  )
+}`,
+  }
+  await sleep(450, signal)
+  emit('file_write', { path: next.path, size: next.content.length, action: 'update', content: next.content })
+  await sleep(300, signal)
+  emit('agent_message', { role: 'alex', content_md: '已更新统计文案。' })
+  await sleep(250, signal)
+  emit('validation', { passed: true, issues: [] })
+  const version = (useProjectStore.getState().current?.current_version ?? 1) + 1
+  emit('version', { version, summary: '迭代 · 统计条' })
+  emit('done', { status: 'success', stats: { tokens: 2400, duration: 3 } })
+}

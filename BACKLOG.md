@@ -17,7 +17,7 @@
 
 ## 提交项
 
-- [ ] **公网可测链接**（A9）：`render.yaml` 已就绪，待 Render 构建出 URL。
+- [x] **公网可测链接**（A9）：https://wenjuanlu516.github.io/atoms-demo/ （Pages 静态回放）。
 - [x] 公开 GitHub 仓库。
 - [x] 一页 writeup（[WRITEUP.md](./WRITEUP.md)）。
 - [x] 公网日限额（slowapi，每 IP 每日 5 次生成）。

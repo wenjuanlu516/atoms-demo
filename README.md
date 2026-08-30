@@ -4,6 +4,9 @@ Chat-first multi-agent app builder. Describe a product in one sentence; a visibl
 
 评委说明见 [WRITEUP.md](./WRITEUP.md)。
 
+**公网演示：** https://wenjuanlu516.github.io/atoms-demo/  
+（GitHub Pages 静态回放，注册后即可点示例。完整 FastAPI 管线仍用本地 `./start.sh`。）
+
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/wenjuanlu516/atoms-demo)
 
 ## Quick start
