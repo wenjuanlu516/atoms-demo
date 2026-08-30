@@ -1,41 +1,45 @@
 # Atoms Demo
 
-Chat-first multi-agent app builder. Describe a product in one sentence; a visible AI team (Mike / Emma / Bob / Alex / QA) generates a runnable web app in the browser.
+一句话需求 → Mike / Emma / Bob / Alex / QA 接力编码 → 浏览器里立刻跑起来，并可对话迭代。
 
-评委说明见 [WRITEUP.md](./WRITEUP.md)。
+评委说明见 [WRITEUP.md](./WRITEUP.md)。本 Demo 只做构建环（生成、预览、迭代、版本、轻量发布）。
 
-**公网演示：** https://wenjuanlu516.github.io/atoms-demo/  
-（GitHub Pages 静态回放，注册后即可点示例。完整 FastAPI 管线仍用本地 `./start.sh`。）
+| | |
+|---|---|
+| 仓库 | https://github.com/wenjuanlu516/atoms-demo |
+| 完整管线 | http://111.230.155.101:8000 （腾讯云轻量 + Docker，默认 `LLM_MOCK=true`） |
+| 静态演示 | https://wenjuanlu516.github.io/atoms-demo/ （GitHub Pages 回放，免配 Key，无服务端生成） |
+| 本地 | `cp .env.example .env && ./start.sh` → http://localhost:8000 |
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/wenjuanlu516/atoms-demo)
 
 ## Quick start
 
 ```bash
-cp .env.example .env   # LLM_MOCK=true by default
-./start.sh             # builds frontend, starts API + SPA on :8000
+cp .env.example .env   # 默认 LLM_MOCK=true
+./start.sh             # 编前端，API + SPA 在 :8000
 ```
 
-Open http://localhost:8000
+打开 http://localhost:8000
 
-### Development (hot reload)
+### 开发（热更新）
 
-Terminal 1 — backend:
+后端用 **Python 3.12**。不要加 `--reload`（会打断进行中的批准 / SSE）。
 
 ```bash
+# 终端 1
 cd backend
-python3 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
+PYTHONPATH=. uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-Terminal 2 — frontend:
-
-```bash
+# 终端 2
 cd frontend
 npm install
-npm run dev            # :5173, proxies /api /preview /p → :8000
+npm run dev            # :5173，代理 /api /preview /p → :8000
 ```
+
+打开 http://localhost:5173，改完后硬刷新。
 
 ### Docker
 
@@ -44,17 +48,22 @@ cp .env.example .env
 docker compose up --build
 ```
 
-### Public (Render)
+## 演示怎么点
 
-点上方 Deploy to Render，用 GitHub 登录后按 Blueprint 创建免费 Web Service。默认 `LLM_MOCK=true`，评委不用自备 Key。闲置会休眠，第一次打开等半分钟。免费档没有持久盘，重启后数据会丢。
+1. 注册登录 → 在「我的项目」点「番茄钟工作法」（不要停在卡住的 `/w/new` 硬等）。
+2. 左栏出现计划后点 **Accept**。不点 Accept，Emma 不会开工。
+3. 看 Emma → Bob → Alex → QA 接力；中栏文件生长；右栏出来后**加任务 / 开计时**。
+4. 对话里说「加一个今日完成数」；文件树看「新 / 改」；顶栏可回滚。
+5. 预览「选择元素」后对 AI 说改一处；或 Publish 打开 `/p/{slug}`。
 
-要在公网走真模型：在 Render 环境变量里设 `LLM_MOCK=false` 和 `LLM_API_KEY`（不要写进仓库）。
+另外两个示例：咖啡落地页（static）、记账本（Vue + 图）。真模型大约 2–4 分钟；Mock 大约十几秒。
 
-### 腾讯云轻量（已有 Docker 服务）
+## 腾讯云轻量
 
-完整管线：http://111.230.155.101:8000  
+完整服务：http://111.230.155.101:8000  
+控制台防火墙放行 **TCP 8000**。
 
-更新代码：
+**更新代码：**
 
 ```bash
 cd ~/atoms-demo
@@ -62,7 +71,7 @@ git pull --ff-only origin main
 sudo docker compose up -d --build
 ```
 
-走真模型（只改服务器上的 `.env`，不要提交 Key）：
+**走真模型**（只改服务器上的 `.env`，不要提交 Key）：
 
 ```bash
 nano ~/atoms-demo/.env
@@ -79,35 +88,32 @@ cd ~/atoms-demo
 sudo docker compose up -d
 ```
 
-`curl -sS http://127.0.0.1:8000/api/health` 应返回 `"llm_mock":false`。
+`curl -sS http://127.0.0.1:8000/api/health` 应返回 `"llm_mock":false`，然后硬刷新公网页。数据库在 Docker 卷里，重建镜像不会清库。
 
-## LLM configuration
+第一次安装可用 [deploy/lighthouse.sh](./deploy/lighthouse.sh)。
 
-| Mode | How |
-|------|-----|
-| Mock (default) | `LLM_MOCK=true` — deterministic pipeline, no API key |
-| Real model | `LLM_MOCK=false` + `LLM_API_KEY` + `LLM_MODEL` / `LLM_BASE_URL` |
+## Render
 
-Keys stay on the server. The browser never sees them.
+点上方 Deploy to Render，按 Blueprint 创建免费 Web Service。默认 Mock。闲置会休眠；免费档无持久盘。真模型在 Render 环境变量里设 `LLM_MOCK=false` 和 `LLM_API_KEY`。
 
-## Demo
+## LLM
 
-1. 注册一个账号并登录
-2. 在「我的项目」点选「番茄钟工作法」
-3. 左侧看 Mike → Emma → Bob → Alex → QA 接力；中间文件树生长；右侧预览可点击开始/添加任务
-4. 在对话里追加修改，或在预览中点「选择元素」后对 AI 说
-5. 保存代码会生成新版本；顶栏可回滚；Publish 得到 `/p/{slug}` 公开链接
+| 模式 | 配置 |
+|------|------|
+| Mock（默认） | `LLM_MOCK=true`，不消耗 Key |
+| 真模型 | `LLM_MOCK=false` + `LLM_API_KEY` + `LLM_MODEL` / `LLM_BASE_URL` |
 
-默认 `LLM_MOCK=true`，三个内置需求都会生成可运行的静态应用。切换真实模型：
+Key 只放服务端，浏览器看不到。生产环境每天每 IP 5 次生成。
 
-```bash
-LLM_MOCK=false
-LLM_API_KEY=sk-...
-LLM_MODEL=deepseek/deepseek-chat
-```
+## 实现要点
+
+- **服务端不执行生成代码。** 只存快照。预览是沙箱 iframe：`allow-scripts allow-forms allow-modals`，无 `allow-same-origin`。
+- **出站改写预览。** 模型常写 `<script src="./src/App.jsx">`；服务端把 React JSX / Vue SFC 编进页面再交给 iframe。
+- **过程当时可见。** SSE + 落库轮询回填角色卡，不必重开项目。
+- **版本是快照。** 迭代、手改、回滚换指针。
 
 ## Stack
 
-- Frontend: React + Vite + TypeScript + Tailwind
-- Backend: FastAPI + SQLite + LangGraph + LiteLLM
-- Runtime: generated apps run in a sandboxed iframe (server never executes them)
+- 前端：React + Vite + TypeScript + Tailwind + Monaco
+- 后端：FastAPI + SQLite + LangGraph + LiteLLM
+- 运行时：生成应用只在 iframe 里跑
