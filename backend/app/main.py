@@ -65,4 +65,4 @@ if dist.exists():
         index = _spa_index()
         if index is None:
             return {"ok": True, "hint": "frontend dist not built yet"}
-        return FileResponse(index)
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})

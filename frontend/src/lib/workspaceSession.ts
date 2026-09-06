@@ -12,7 +12,8 @@ export function shouldReuseChat(
   busy: boolean,
   messageCount: number,
 ): boolean {
-  return currentId === routeId && (busy || messageCount > 0)
+  if (currentId != null && currentId !== routeId) return false
+  return busy || messageCount > 0
 }
 
 function failSend(error: unknown) {
@@ -39,6 +40,8 @@ export async function startNewProject(prompt: string, title?: string) {
     const project = await useProjectStore.getState().create(prompt, title)
     if (useChatStore.getState().busy) {
       useChatStore.setState({ statusLabel: '等待你接受计划' })
+      connectProjectStream(project.id, true)
+      void syncGeneration(project.id)
     }
     return project
   })()

@@ -7,11 +7,12 @@ type Handlers = {
   replay?: boolean
 }
 
-function parseBlock(block: string): SseEvent | null {
+export function parseBlock(block: string): SseEvent | null {
   let id = 0
   let event = 'message'
   const dataLines: string[] = []
-  for (const line of block.split('\n')) {
+  for (const raw of block.split('\n')) {
+    const line = raw.replace(/\r$/, '')
     if (line.startsWith('id:')) id = Number(line.slice(3).trim())
     else if (line.startsWith('event:')) event = line.slice(6).trim()
     else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
@@ -57,7 +58,7 @@ export function connectSse(url: string, handlers: Handlers): () => void {
       while (!closed) {
         const { value, done } = await reader.read()
         if (done) break
-        buffer += decoder.decode(value, { stream: true })
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n').replace(/\r/g, '\n')
         const parts = buffer.split('\n\n')
         buffer = parts.pop() ?? ''
         for (const part of parts) {
