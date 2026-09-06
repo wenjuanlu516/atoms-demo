@@ -99,7 +99,11 @@ type ChatState = {
 }
 
 function nextId(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`
+  const uuid =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`
+  return `${prefix}-${uuid}`
 }
 
 function statusFor(role: string, title: string): string {
