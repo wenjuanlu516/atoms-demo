@@ -43,14 +43,23 @@ export function ChatPanel({
     }
     setDeciding(true)
     void approveProject(project.id, approved)
-      .then(() => {
+      .then((result) => {
+        if (result.waiting === false) {
+          useChatStore.getState().closeStalePlan()
+          useChatStore.getState().addSystemNote('这轮已经结束，不用再点 Accept。直接发下一条即可。')
+          return
+        }
         useChatStore.getState().markPlan(approved ? 'accepted' : 'rejected')
         if (!approved) useProjectStore.getState().setStatus('idle')
       })
       .catch((error: unknown) => {
-        useChatStore.getState().applyEvent('error', {
-          message: error instanceof Error ? error.message : '操作失败',
-        })
+        const message = error instanceof Error ? error.message : '操作失败'
+        if (/waiting|没有等待/i.test(message)) {
+          useChatStore.getState().closeStalePlan()
+          useChatStore.getState().addSystemNote('这轮已经结束，不用再点 Accept。直接发下一条即可。')
+          return
+        }
+        useChatStore.getState().applyEvent('error', { message })
       })
       .finally(() => setDeciding(false))
   }
@@ -81,8 +90,8 @@ export function ChatPanel({
             key={message.id}
             message={message}
             deciding={deciding}
-            onAcceptPlan={() => decide(true)}
-            onRejectPlan={() => decide(false)}
+            onAcceptPlan={awaitingApproval ? () => decide(true) : undefined}
+            onRejectPlan={awaitingApproval ? () => decide(false) : undefined}
           />
         ))}
         {(busy || steps.some((step) => step.status !== 'pending') || pastRounds.length > 0) && (

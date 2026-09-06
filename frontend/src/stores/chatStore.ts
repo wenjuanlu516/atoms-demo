@@ -94,6 +94,7 @@ type ChatState = {
   applyEvent: (event: string, data: Record<string, unknown>) => void
   clearApproval: () => void
   markPlan: (status: 'accepted' | 'rejected') => void
+  closeStalePlan: () => void
   setQueued: (text: string | null) => void
   syncStepsFromMessages: (items: { role: string; content: string }[]) => void
 }
@@ -265,6 +266,14 @@ export const useChatStore = create<ChatState>((set) => ({
         steps,
       }
     }),
+  closeStalePlan: () =>
+    set((state) => ({
+      awaitingApproval: false,
+      pendingPlan: null,
+      messages: state.messages.map((item) =>
+        item.kind === 'plan' && item.planStatus === 'pending' ? { ...item, planStatus: 'accepted' } : item,
+      ),
+    })),
   setQueued: (text) => set({ queued: text }),
   syncStepsFromMessages: (items) =>
     set((state) => {
@@ -358,6 +367,7 @@ export const useChatStore = create<ChatState>((set) => ({
         }
       }
       if (event === 'plan_ready') {
+        if (!state.busy && !state.awaitingApproval) return state
         const plan = Array.isArray(data.plan) ? data.plan.map(String) : []
         const dispatch = Array.isArray(data.dispatch) ? data.dispatch.map(String) : []
         const pendingPlan = {
@@ -405,7 +415,13 @@ export const useChatStore = create<ChatState>((set) => ({
           statusLabel: '',
           steps: state.steps.map((step) => ({ ...step, status: 'done' as const })),
           stats: { tokens: stats.tokens ?? 0, duration: stats.duration ?? 0 },
-          messages: state.messages.map((item) => (item.streaming ? { ...item, streaming: false } : item)),
+          messages: state.messages.map((item) =>
+            item.kind === 'plan' && item.planStatus === 'pending'
+              ? { ...item, planStatus: 'accepted' as const, streaming: false }
+              : item.streaming
+                ? { ...item, streaming: false }
+                : item,
+          ),
         }
       }
       if (event === 'error') {
@@ -415,7 +431,9 @@ export const useChatStore = create<ChatState>((set) => ({
           pendingPlan: null,
           statusLabel: '',
           messages: [
-            ...state.messages,
+            ...state.messages.map((item) =>
+              item.kind === 'plan' && item.planStatus === 'pending' ? { ...item, planStatus: 'rejected' as const } : item,
+            ),
             {
               id: nextId('sys'),
               role: 'system',

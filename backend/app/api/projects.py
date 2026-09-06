@@ -270,12 +270,19 @@ async def approve_project(
     if not tasks.is_running(pid):
         tasks.resume_if_stale(pid)
     if not tasks.is_running(pid):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No generation waiting")
+        return {"ok": False, "approved": body.approved, "waiting": False}
+    for _ in range(50):
+        fut = tasks.approvals.get(pid)
+        if fut is not None:
+            break
+        if not tasks.is_running(pid):
+            return {"ok": False, "approved": body.approved, "waiting": False}
+        await asyncio.sleep(0.05)
     resolved = tasks.resolve_approval(pid, body.approved)
     if not body.approved:
         project.status = "idle"
         db.commit()
-    return {"ok": resolved, "approved": body.approved}
+    return {"ok": resolved, "approved": body.approved, "waiting": True}
 
 
 class RollbackBody(BaseModel):

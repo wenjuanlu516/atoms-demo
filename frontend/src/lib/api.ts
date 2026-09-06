@@ -126,7 +126,10 @@ export async function postMessage(pid: number, content: string, model?: string):
   })
 }
 
-export async function approveProject(pid: number, approved: boolean): Promise<{ ok: boolean; approved: boolean }> {
+export async function approveProject(
+  pid: number,
+  approved: boolean,
+): Promise<{ ok: boolean; approved: boolean; waiting?: boolean }> {
   if (isStaticDemo()) return staticApi.approveProject(pid, approved)
   return request(`/api/projects/${pid}/approve`, {
     method: 'POST',

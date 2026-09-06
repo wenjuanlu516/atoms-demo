@@ -48,7 +48,7 @@ export function AgentCard({
             <li key={step}>{step}</li>
           ))}
         </ol>
-        {pending && (
+        {pending && onAcceptPlan && onRejectPlan && (
           <div className="mt-3 flex gap-2">
             <Button disabled={deciding} onClick={onAcceptPlan}>
               Accept
