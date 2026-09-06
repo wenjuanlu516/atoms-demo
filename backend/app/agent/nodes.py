@@ -96,7 +96,8 @@ async def alex_node(state: AgentState) -> dict:
         f"需要修复：{issues}"
     )
     output = await complete_model(prompts.ALEX, user, AlexOut)
-    merged = {f["path"]: f for f in existing}
+    replace = state.get("change_level") == "major"
+    merged = {} if replace else {f["path"]: f for f in existing}
     for file in output.files:
         merged[file.path] = {"path": file.path, "content": file.content}
         await emit(

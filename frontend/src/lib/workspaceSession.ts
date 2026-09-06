@@ -55,7 +55,7 @@ export async function sendFollowUp(projectId: number, prompt: string) {
     await postMessage(projectId, prompt)
     useProjectStore.getState().setStatus(followUp ? 'iterating' : 'generating')
     connectProjectStream(projectId, true)
-    if (!followUp) void pullPlan(projectId)
+    void pullPlan(projectId)
   } catch (error) {
     failSend(error)
     throw error
@@ -148,7 +148,12 @@ export async function pullPlan(id: number, attempts = 24, delayMs = 250) {
       /* next attempt */
     }
     const chat = useChatStore.getState()
-    if (chat.awaitingApproval || chat.messages.some((item) => item.kind === 'plan')) return
+    if (
+      chat.awaitingApproval ||
+      chat.messages.some((item) => item.kind === 'plan' && item.planStatus === 'pending')
+    ) {
+      return
+    }
     await new Promise((resolve) => window.setTimeout(resolve, delayMs))
   }
 }
@@ -161,7 +166,8 @@ export function syncGeneration(id: number) {
     chat.ingestMessages(detail.messages)
     chat.syncStepsFromMessages(agents)
     const pending = planFromMessages(detail.messages)
-    if (pending && !chat.messages.some((item) => item.kind === 'plan')) {
+    const waiting = chat.messages.some((item) => item.kind === 'plan' && item.planStatus === 'pending')
+    if (pending && !waiting) {
       chat.applyEvent('plan_ready', pending)
     }
     if (detail.current_version > 0) {

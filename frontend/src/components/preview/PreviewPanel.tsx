@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ErrorBar } from '@/components/preview/ErrorBar'
 import { Button } from '@/components/ui/button'
 import { reportFix } from '@/lib/api'
+import { connectProjectStream } from '@/lib/workspaceSession'
 import { isAtomsMessage, postToIframe } from '@/lib/postMessage'
 import { cn } from '@/lib/utils'
 import { useChatStore } from '@/stores/chatStore'
@@ -33,7 +34,10 @@ export function PreviewPanel({ onSend }: { onSend?: (text: string) => void }) {
           setFixing(true)
           void reportFix(current.id, message, String(event.data.source ?? ''))
             .then((result) => {
-              if (result.accepted) useChatStore.getState().beginRound('iterate')
+              if (result.accepted) {
+                useChatStore.getState().beginRound('iterate')
+                connectProjectStream(current.id, true)
+              }
             })
             .finally(() => setFixing(false))
         }

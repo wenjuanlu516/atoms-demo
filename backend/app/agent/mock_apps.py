@@ -232,15 +232,108 @@ render();
     ]
 
 
+def _focus_prompt(prompt: str) -> str:
+    for key in ("需求：", "用户需求："):
+        if key in prompt:
+            return prompt.split(key)[-1].splitlines()[0]
+    return prompt.splitlines()[0] if prompt else ""
+
+
+def _title_from_prompt(prompt: str) -> str:
+    line = _focus_prompt(prompt)
+    for prefix in ("帮我", "请", "制作", "做一个", "做个", "开发一个", "写一个"):
+        if line.startswith(prefix):
+            line = line[len(prefix) :]
+    for sep in ("。", "，", ",", "；"):
+        line = line.split(sep, 1)[0]
+    return (line.strip("的 。") or "新应用")[:24]
+
+
+def _generic(prompt: str) -> list[dict]:
+    title = _title_from_prompt(prompt)
+    return [
+        {
+            "path": "index.html",
+            "content": f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title}</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+  <main class="app">
+    <p class="eyebrow">Guide</p>
+    <h1>{title}</h1>
+    <p class="muted">按你的需求生成的页面，可继续对话改内容。</p>
+    <section>
+      <h2>看点</h2>
+      <ul id="spots"><li>核心景点与路线</li><li>适合慢慢逛的街区</li></ul>
+    </section>
+    <section>
+      <h2>美食</h2>
+      <ul id="foods"><li>本地小吃</li><li>推荐餐厅</li></ul>
+    </section>
+    <form id="form">
+      <input id="note" placeholder="记下想去的地方" />
+      <button type="submit">添加</button>
+    </form>
+    <ul id="list"></ul>
+  </main>
+  <script src="./src/main.js"></script>
+</body>
+</html>
+""",
+        },
+        {
+            "path": "src/main.js",
+            "content": """const form = document.getElementById('form');
+const input = document.getElementById('note');
+const list = document.getElementById('list');
+form.onsubmit = (event) => {
+  event.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  const li = document.createElement('li');
+  li.innerHTML = '<span></span><button type="button">删除</button>';
+  li.querySelector('span').textContent = text;
+  li.querySelector('button').onclick = () => li.remove();
+  list.appendChild(li);
+  input.value = '';
+};
+""",
+        },
+        {
+            "path": "src/styles.css",
+            "content": """:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Songti SC", "Noto Serif SC", serif; background: #f6efe4; color: #2c241c; }
+.app { max-width: 640px; margin: 48px auto; padding: 0 20px 48px; }
+.eyebrow { letter-spacing: 0.18em; text-transform: uppercase; color: #8a7460; font-size: 12px; }
+h1 { margin: 4px 0 8px; font-size: 36px; }
+h2 { margin: 28px 0 8px; font-size: 20px; }
+.muted { color: #6f6256; }
+section ul { padding-left: 18px; line-height: 1.8; }
+form { display: flex; gap: 8px; margin-top: 24px; }
+input { flex: 1; padding: 10px 12px; border: 1px solid #d8cbb8; background: #fffaf2; }
+button { padding: 10px 14px; border: 0; background: #8b3a2a; color: #fff; }
+#list { list-style: none; padding: 0; }
+#list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e6d8c6; }
+""",
+        },
+    ]
+
+
 def pick_files(prompt: str) -> list[dict]:
-    text = prompt.lower()
+    text = _focus_prompt(prompt).lower()
     if any(key in text for key in ("番茄", "pomodoro", "专注", "计时")):
         return _pomodoro()
     if any(key in text for key in ("咖啡", "coffee", "落地页", "品牌")):
         return _coffee()
     if any(key in text for key in ("记账", "账本", "开销", "ledger")):
         return _ledger()
-    return _pomodoro()
+    return _generic(prompt)
 
 
 def pick_stack(prompt: str) -> str:

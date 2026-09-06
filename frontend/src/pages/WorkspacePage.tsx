@@ -91,7 +91,13 @@ function BlankWorkspace() {
     void onSend(text)
   }, [busy, queued])
 
-  return <Workspace onSend={onSend} onStop={stopLocally} busy={busy} />
+  const onStop = () => {
+    const projectId = useProjectStore.getState().current?.id
+    if (projectId) void stopGeneration(projectId)
+    else stopLocally()
+  }
+
+  return <Workspace onSend={onSend} onStop={onStop} busy={busy} />
 }
 
 function ProjectWorkspace({ id }: { id: number }) {

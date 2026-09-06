@@ -84,10 +84,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const nextFiles = exists
         ? state.files.map((file) =>
             file.path === path
-              ? { ...file, content, size: content.length, writing: action !== 'done' }
+              ? { ...file, content, size: content.length, writing: action === 'start' }
               : { ...file, writing: false },
           )
-        : [...state.files.map((file) => ({ ...file, writing: false })), { path, content, size: content.length, writing: true }]
+        : [...state.files.map((file) => ({ ...file, writing: false })), { path, content, size: content.length, writing: action === 'start' }]
       return { files: nextFiles, activePath: path }
     })
   },

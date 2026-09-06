@@ -365,8 +365,6 @@ export const useChatStore = create<ChatState>((set) => ({
           change_level: String(data.change_level ?? 'major'),
           dispatch,
         }
-        const accepted = state.messages.some((item) => item.kind === 'plan' && item.planStatus === 'accepted')
-        if (accepted) return state
         const exists = state.messages.some((item) => item.kind === 'plan' && item.planStatus === 'pending')
         return {
           busy: true,

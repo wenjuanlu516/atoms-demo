@@ -21,14 +21,15 @@ def _role(system: str) -> str:
 def mock_complete(system: str, user: str, *, json_mode: bool = False) -> str:
     role = _role(system)
     if role == "mike":
+        request = user.split("用户需求：", 1)[-1].split("\n模式", 1)[0] if "用户需求：" in user else user
         iterate = "模式：iterate" in user or "模式:iterate" in user
-        rewrite = any(key in user for key in ("重做", "重新做", "换一个", "改成完全"))
+        rewrite = any(key in request for key in ("重做", "重新做", "换一个", "改成完全", "换成"))
+        tweak = any(key in request for key in ("加一个", "加个", "增加", "改一下", "小改", "颜色", "文案", "删掉", "删除"))
+        new_app = any(key in request for key in ("制作", "帮我做", "做一个", "做个", "开发一个", "写一个"))
         minor = (
-            (iterate and not rewrite)
-            or "minor" in user.lower()
-            or "小改" in user
-            or "颜色" in user
-            or "文案" in user
+            "minor" in request.lower()
+            or (iterate and tweak and not rewrite)
+            or (iterate and not rewrite and not new_app)
         )
         return json.dumps(
             {

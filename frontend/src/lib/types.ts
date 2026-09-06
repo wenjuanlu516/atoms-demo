@@ -26,8 +26,17 @@ export function planFromMessages(messages: { role: string; content: string }[]):
   change_level: string
   dispatch: string[]
 } | null {
-  const last = [...messages].reverse().find((item) => item.role !== 'user')
-  if (last?.role !== 'mike' || !last.content.includes('执行计划')) return null
+  let index = -1
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'mike' && messages[i].content.includes('执行计划')) {
+      index = i
+      break
+    }
+  }
+  if (index < 0) return null
+  const later = messages.slice(index + 1)
+  if (later.some((item) => item.role !== 'user')) return null
+  const last = messages[index]
   const plan = [...last.content.matchAll(/^\d+\.\s+(.+)$/gm)].map((item) => item[1])
   const level = /变更级别：`?(\w+)/.exec(last.content)?.[1] ?? 'major'
   const dispatchMatch = /指派：(.+)/.exec(last.content)

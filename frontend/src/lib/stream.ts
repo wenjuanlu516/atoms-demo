@@ -54,7 +54,15 @@ export function attachStream(id: number, replay = true) {
         usePreviewStore.getState().setUrl(`/preview/${id}/v${version}/index.html`)
         void loadOne(id)
       }
-      if (event.event === 'done' || event.event === 'error') setStatus('idle')
+      if (event.event === 'done' || event.event === 'error') {
+        setStatus('idle')
+        void loadOne(id).then(() => {
+          const version = useProjectStore.getState().current?.current_version ?? 0
+          if (version > 0) {
+            usePreviewStore.getState().setUrl(`/preview/${id}/v${version}/index.html`)
+          }
+        })
+      }
     },
   })
 }
