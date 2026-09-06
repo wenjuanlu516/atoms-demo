@@ -27,5 +27,6 @@ pip install -r requirements.txt
 echo "==> Initializing database..."
 python -c "from app.models import init_db; init_db()"
 
-echo "==> Starting server on :8000..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+PORT="${PORT:-8010}"
+echo "==> Starting server on :${PORT}..."
+exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"

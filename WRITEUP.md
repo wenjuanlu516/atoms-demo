@@ -8,8 +8,8 @@ Chat-first 多智能体应用生成器：一句话需求 → Mike / Emma / Bob /
 |---|---|
 | 仓库 | https://github.com/wenjuanlu516/atoms-demo |
 | 公网 | https://wenjuanlu516.github.io/atoms-demo/ （GitHub Pages 静态演示，内置回放，免配 Key）。完整服务端管线见本地 / Docker。 |
-| 本地 | `cp .env.example .env && ./start.sh` → http://localhost:8000 |
-| 开发 | 后端 `:8000` + 前端 `npm run dev` → http://localhost:5173（预览与 SSE 走 Vite 代理） |
+| 本地 | 开发：http://localhost:5176 （API `:8010`）。本机 8000 / 5173 已给其它服务。 |
+| 开发 | 后端 `:8010` + 前端 `npm run dev` → http://localhost:5176（预览与 SSE 走 Vite 代理） |
 | Docker | `docker compose up --build` |
 | 默认 | `LLM_MOCK=true`，三个内置示例不消耗 Key |
 | 真模型 | `LLM_MOCK=false` + 服务端 `LLM_API_KEY`（浏览器看不到 Key） |
@@ -75,6 +75,7 @@ sudo docker compose up -d
 | A9 公网 | Pages 静态回放；完整管线 http://111.230.155.101:8000 。真模型改服务器 `~/atoms-demo/.env` 后 `sudo docker compose up -d` |
 
 未做：运行时 CDN 本地化、Race Mode。点选目前是「选中 → 一句话」，不是完整快捷条。公网默认 Mock，每 IP 每日 5 次生成。
+
 
 ## 怎么用 AI 做这个 Demo
 

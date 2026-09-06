@@ -36,9 +36,13 @@ export function ChatPanel({
   }, [messages, awaitingApproval, steps, pastRounds])
 
   const decide = (approved: boolean) => {
-    if (!current) return
+    const project = current ?? useProjectStore.getState().current
+    if (!project) {
+      useChatStore.getState().applyEvent('error', { message: '项目还没就绪，请再点一次 Accept' })
+      return
+    }
     setDeciding(true)
-    void approveProject(current.id, approved)
+    void approveProject(project.id, approved)
       .then(() => {
         useChatStore.getState().markPlan(approved ? 'accepted' : 'rejected')
         if (!approved) useProjectStore.getState().setStatus('idle')

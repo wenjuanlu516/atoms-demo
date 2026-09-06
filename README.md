@@ -9,7 +9,7 @@
 | 仓库 | https://github.com/wenjuanlu516/atoms-demo |
 | 完整管线 | http://111.230.155.101:8000 （腾讯云轻量 + Docker，默认 `LLM_MOCK=true`） |
 | 静态演示 | https://wenjuanlu516.github.io/atoms-demo/ （GitHub Pages 回放，免配 Key，无服务端生成） |
-| 本地 | `cp .env.example .env && ./start.sh` → http://localhost:8000 |
+| 本地开发 | 后端 `:8010` + 前端 `npm run dev` → http://localhost:5176 （避开本机已占用的 8000 / 5173） |
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/wenjuanlu516/atoms-demo)
 
@@ -17,10 +17,15 @@
 
 ```bash
 cp .env.example .env   # 默认 LLM_MOCK=true
-./start.sh             # 编前端，API + SPA 在 :8000
+# 终端 1
+cd backend && PYTHONPATH=. uvicorn app.main:app --host 127.0.0.1 --port 8010
+# 终端 2
+cd frontend && npm run dev
 ```
 
-打开 http://localhost:8000
+打开 http://localhost:5176（不要用 :5173 / :8000，那是本机其它服务）。
+
+一键单端口：`PORT=8010 ./start.sh` → http://localhost:8010
 
 ### 开发（热更新）
 
@@ -31,15 +36,15 @@ cp .env.example .env   # 默认 LLM_MOCK=true
 cd backend
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-PYTHONPATH=. uvicorn app.main:app --host 127.0.0.1 --port 8000
+PYTHONPATH=. uvicorn app.main:app --host 127.0.0.1 --port 8010
 
 # 终端 2
 cd frontend
 npm install
-npm run dev            # :5173，代理 /api /preview /p → :8000
+npm run dev            # :5176，代理 /api /preview /p → :8010
 ```
 
-打开 http://localhost:5173，改完后硬刷新。
+打开 http://localhost:5176，改完后硬刷新。
 
 ### Docker
 

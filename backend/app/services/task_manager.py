@@ -140,6 +140,13 @@ class TaskManager:
                 }
                 await self.graph.ainvoke(initial)
             except asyncio.CancelledError:
+                from app.models import Project
+                from app.services.persistence import session_scope
+
+                with session_scope() as db:
+                    project = db.get(Project, project_id)
+                    if project:
+                        project.status = "idle"
                 await self.event_bus.publish(
                     project_id, "error", {"message": "已取消", "recoverable": True}
                 )
@@ -160,14 +167,14 @@ class TaskManager:
 
     def stop(self, project_id: int) -> bool:
         fut = self.approvals.get(project_id)
+        resolved = False
         if fut is not None and not fut.done():
-            self.resolve_approval(project_id, False)
-            return True
+            resolved = self.resolve_approval(project_id, False)
         task = self.tasks.get(project_id)
         if task and not task.done():
             task.cancel()
             return True
-        return False
+        return resolved
 
     async def shutdown(self) -> None:
         for task in self.tasks.values():

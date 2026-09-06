@@ -21,7 +21,15 @@ def _role(system: str) -> str:
 def mock_complete(system: str, user: str, *, json_mode: bool = False) -> str:
     role = _role(system)
     if role == "mike":
-        minor = "minor" in user.lower() or "小改" in user or "颜色" in user or "文案" in user
+        iterate = "模式：iterate" in user or "模式:iterate" in user
+        rewrite = any(key in user for key in ("重做", "重新做", "换一个", "改成完全"))
+        minor = (
+            (iterate and not rewrite)
+            or "minor" in user.lower()
+            or "小改" in user
+            or "颜色" in user
+            or "文案" in user
+        )
         return json.dumps(
             {
                 "plan": ["编码", "验证"] if minor else ["PRD", "架构设计", "编码", "验证"],

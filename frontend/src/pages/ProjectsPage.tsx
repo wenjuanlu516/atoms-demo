@@ -5,6 +5,7 @@ import { ModelSelect } from '@/components/layout/ModelSelect'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { Button } from '@/components/ui/button'
 import { EXAMPLE_PROMPTS } from '@/lib/examples'
+import { openBlankWorkspace, startNewProject } from '@/lib/workspaceSession'
 import { useChatStore } from '@/stores/chatStore'
 import { useProjectStore } from '@/stores/projectStore'
 
@@ -12,9 +13,9 @@ export function ProjectsPage() {
   const navigate = useNavigate()
   const projects = useProjectStore((state) => state.projects)
   const loadList = useProjectStore((state) => state.loadList)
-  const create = useProjectStore((state) => state.create)
   const remove = useProjectStore((state) => state.remove)
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     void loadList()
@@ -22,16 +23,14 @@ export function ProjectsPage() {
 
   const start = async (prompt: string, title?: string) => {
     setCreating(true)
+    setError(null)
     try {
-      const chat = useChatStore.getState()
-      chat.reset()
-      chat.beginRound('build')
-      chat.addUserMessage(prompt)
-      const project = await create(prompt, title)
-      useProjectStore.getState().setKeepChatId(project.id)
-      navigate(`/w/${project.id}`)
-    } catch {
       useChatStore.getState().reset()
+      const project = await startNewProject(prompt, title)
+      navigate(`/w/${project.id}`)
+    } catch (err) {
+      useChatStore.getState().reset()
+      setError(err instanceof Error ? err.message : '创建失败，请再试一次')
     } finally {
       setCreating(false)
     }
@@ -74,11 +73,18 @@ export function ProjectsPage() {
             ))}
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Button disabled={creating} onClick={() => navigate('/w/new')}>
+            <Button
+              disabled={creating}
+              onClick={() => {
+                openBlankWorkspace()
+                navigate('/w/new')
+              }}
+            >
               空白项目
             </Button>
             <ModelSelect />
           </div>
+          {error && <p className="mt-3 text-sm text-rose">{error}</p>}
         </section>
 
         <section>

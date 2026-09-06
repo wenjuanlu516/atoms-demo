@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ErrorBar } from '@/components/preview/ErrorBar'
 import { Button } from '@/components/ui/button'
-import { postMessage as postMessageApi, reportFix } from '@/lib/api'
+import { reportFix } from '@/lib/api'
 import { isAtomsMessage, postToIframe } from '@/lib/postMessage'
-import { attachStream } from '@/lib/stream'
 import { cn } from '@/lib/utils'
 import { useChatStore } from '@/stores/chatStore'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useProjectStore } from '@/stores/projectStore'
 
-export function PreviewPanel() {
+export function PreviewPanel({ onSend }: { onSend?: (text: string) => void }) {
   const url = usePreviewStore((state) => state.url)
   const viewport = usePreviewStore((state) => state.viewport)
   const setViewport = usePreviewStore((state) => state.setViewport)
@@ -33,7 +32,9 @@ export function PreviewPanel() {
         if (current && !fixing) {
           setFixing(true)
           void reportFix(current.id, message, String(event.data.source ?? ''))
-            .then(() => attachStream(current.id))
+            .then((result) => {
+              if (result.accepted) useChatStore.getState().beginRound('iterate')
+            })
             .finally(() => setFixing(false))
         }
       }
@@ -86,9 +87,11 @@ export function PreviewPanel() {
             event.preventDefault()
             if (!instruction.trim()) return
             const text = `把这个元素改一下：${picked}。${instruction}`
-            await postMessageApi(current.id, text)
-            useChatStore.getState().addUserMessage(text)
-            attachStream(current.id)
+            if (onSend) {
+              onSend(text)
+            } else {
+              useChatStore.getState().addUserMessage(text)
+            }
             setInstruction('')
             setPicked(null)
             setSelectMode(false)

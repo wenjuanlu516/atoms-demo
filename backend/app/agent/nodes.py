@@ -131,9 +131,11 @@ async def qa_node(state: AgentState) -> dict:
     issues = [i.model_dump() for i in llm.issues] + static.get("issues", [])
     blockers = [i for i in issues if i.get("severity") == "blocker"]
     report = {"passed": len(blockers) == 0, "issues": issues}
+    md = "验证通过" if report["passed"] else f"发现 {len(blockers)} 个 blocker"
+    await emit("agent_message", {"role": "qa", "content_md": md})
     await emit("validation", report)
     with session_scope() as db:
-        add_message(db, state["project_id"], "qa", "验证通过" if report["passed"] else f"发现 {len(blockers)} 个 blocker")
+        add_message(db, state["project_id"], "qa", md)
     fix_round = state.get("fix_round", 0)
     if blockers:
         fix_round += 1

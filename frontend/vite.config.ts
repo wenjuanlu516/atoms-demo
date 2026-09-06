@@ -6,6 +6,8 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const apiOrigin = process.env.ATOMS_API_ORIGIN || 'http://127.0.0.1:8010'
+const devPort = Number(process.env.ATOMS_DEV_PORT || 5176)
 
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
@@ -20,12 +22,12 @@ export default defineConfig({
     port: 4173,
   },
   server: {
-    host: true,
-    port: 5173,
+    host: '127.0.0.1',
+    port: devPort,
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: apiOrigin,
         changeOrigin: true,
         timeout: 0,
         proxyTimeout: 0,
@@ -42,11 +44,11 @@ export default defineConfig({
         },
       },
       '/preview': {
-        target: 'http://127.0.0.1:8000',
+        target: apiOrigin,
         changeOrigin: true,
       },
       '/p': {
-        target: 'http://127.0.0.1:8000',
+        target: apiOrigin,
         changeOrigin: true,
       },
     },

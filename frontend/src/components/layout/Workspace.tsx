@@ -18,7 +18,7 @@ export function Workspace({
       <div className="grid min-h-0 flex-1 grid-cols-[340px_minmax(0,1fr)_minmax(0,1fr)] overflow-hidden">
         <ChatPanel onSend={onSend} onStop={onStop} busy={busy} />
         <CodePanel />
-        <PreviewPanel />
+        <PreviewPanel onSend={onSend} />
       </div>
     </div>
   )

@@ -43,7 +43,13 @@ export function MessageInput({
     event?.preventDefault()
     const text = value.trim()
     if (!text) return
-    if (busy && !awaitingApproval && onQueue) {
+    if (busy && awaitingApproval) {
+      onSend(text)
+      setValue('')
+      requestAnimationFrame(() => areaRef.current?.focus())
+      return
+    }
+    if (busy && onQueue) {
       onQueue(text)
       setValue('')
       requestAnimationFrame(() => areaRef.current?.focus())
@@ -108,9 +114,9 @@ export function MessageInput({
             <Button
               type="submit"
               className="h-8 px-3 text-xs"
-              disabled={!value.trim() || (busy && awaitingApproval)}
+              disabled={!value.trim() || (busy && !awaitingApproval && !onQueue)}
             >
-              {busy && !awaitingApproval ? '排队' : '发送'}
+              {busy && !awaitingApproval ? '排队' : awaitingApproval ? '改需求' : '发送'}
             </Button>
           </div>
         </div>

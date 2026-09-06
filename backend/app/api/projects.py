@@ -162,12 +162,19 @@ async def post_message(
 ) -> Project:
     project = _owned_project(db, user, pid)
     if tasks.is_running(pid):
+        tasks.stop(pid)
+        for _ in range(20):
+            if not tasks.is_running(pid):
+                break
+            await asyncio.sleep(0.05)
+    if tasks.is_running(pid):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Generation already running")
     db.add(Message(project_id=project.id, role="user", content=body.content))
-    project.status = "iterating"
+    mode = "iterate" if project.current_version > 0 else "build"
+    project.status = "iterating" if mode == "iterate" else "generating"
     db.commit()
     db.refresh(project)
-    tasks.spawn_generation(project.id, body.content, mode="iterate", model=_chosen_model(body.model))
+    tasks.spawn_generation(project.id, body.content, mode=mode, model=_chosen_model(body.model))
     return project
 
 
@@ -244,8 +251,10 @@ def stop_project(
     db: Session = Depends(get_db),
     tasks: TaskManager = Depends(get_task_manager),
 ) -> dict:
-    _owned_project(db, user, pid)
+    project = _owned_project(db, user, pid)
     stopped = tasks.stop(pid)
+    project.status = "idle"
+    db.commit()
     return {"stopped": stopped}
 
 

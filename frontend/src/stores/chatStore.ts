@@ -83,9 +83,11 @@ type ChatState = {
   steps: ProgressStep[]
   pastRounds: PastRound[]
   stats: { tokens: number; duration: number } | null
+  epoch: number
   reset: () => void
+  bumpEpoch: () => void
   addUserMessage: (content: string) => void
-  beginRound: (kind: 'build' | 'iterate') => void
+  beginRound: (kind: 'build' | 'iterate', userText?: string) => void
   addSystemNote: (content: string) => void
   hydrate: (items: { role: string; content: string }[], keepBusy?: boolean) => void
   ingestMessages: (items: { role: string; content: string }[]) => void
@@ -116,6 +118,7 @@ export const useChatStore = create<ChatState>((set) => ({
   steps: [],
   pastRounds: [],
   stats: null,
+  epoch: 0,
   reset: () =>
     set({
       messages: [],
@@ -128,7 +131,9 @@ export const useChatStore = create<ChatState>((set) => ({
       steps: [],
       pastRounds: [],
       stats: null,
+      epoch: 0,
     }),
+  bumpEpoch: () => set((state) => ({ epoch: state.epoch + 1 })),
   hydrate: (items, keepBusy = false) =>
     set((state) => {
       const hasTeam = items.some((item) => item.role !== 'user' && item.role !== 'system')
@@ -197,7 +202,7 @@ export const useChatStore = create<ChatState>((set) => ({
         { id: nextId('sys'), role: 'system', content, createdAt: Date.now() },
       ],
     })),
-  beginRound: (kind) =>
+  beginRound: (kind, userText) =>
     set((state) => {
       const shouldArchive = state.steps.some((step) => step.status !== 'pending')
       const archived = shouldArchive
@@ -211,22 +216,31 @@ export const useChatStore = create<ChatState>((set) => ({
           ]
         : state.pastRounds
       const steps = kind === 'iterate' ? iterateSteps() : stepsFromPlan(state.pendingPlan)
-      const note =
-        kind === 'iterate'
-          ? {
-              id: nextId('sys'),
-              role: 'system' as const,
-              content: `${archived.length === 0 ? '第 1 轮' : `第 ${archived.length + 1} 轮`} · 迭代开始`,
-              createdAt: Date.now(),
-            }
-          : null
+      const extras: ChatMessage[] = []
+      if (userText?.trim()) {
+        extras.push({
+          id: nextId('user'),
+          role: 'user',
+          content: userText.trim(),
+          createdAt: Date.now(),
+        })
+      }
+      if (kind === 'iterate') {
+        extras.push({
+          id: nextId('sys'),
+          role: 'system',
+          content: `${archived.length === 0 ? '第 1 轮' : `第 ${archived.length + 1} 轮`} · 迭代开始`,
+          createdAt: Date.now(),
+        })
+      }
       return {
         pastRounds: archived,
         steps,
         busy: true,
         awaitingApproval: false,
+        epoch: state.epoch + 1,
         statusLabel: kind === 'iterate' ? '已收到改动，正在安排…' : '已发送，正在连接团队…',
-        messages: note ? [...state.messages, note] : state.messages,
+        messages: [...state.messages, ...extras],
       }
     }),
   clearApproval: () => set({ awaitingApproval: false, pendingPlan: null }),
@@ -375,16 +389,9 @@ export const useChatStore = create<ChatState>((set) => ({
       }
       if (event === 'validation') {
         const passed = Boolean(data.passed)
-        const issues = Array.isArray(data.issues) ? data.issues : []
-        const content = passed
-          ? '静态检查通过，未发现 blocker。'
-          : `发现 ${issues.length} 个问题，准备回传修复。`
         return {
           statusLabel: passed ? 'QA · 验证通过' : 'QA · 发现问题',
-          messages: [
-            ...state.messages.map((item) => (item.streaming ? { ...item, streaming: false } : item)),
-            { id: nextId('qa'), role: 'qa', title: '验证报告', content, createdAt: Date.now() },
-          ],
+          steps: touchStep(state.steps.length ? state.steps : stepsFromPlan(state.pendingPlan), 'qa', 'done'),
         }
       }
       if (event === 'done') {

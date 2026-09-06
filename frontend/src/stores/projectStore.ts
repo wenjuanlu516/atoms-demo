@@ -7,7 +7,6 @@ import type { FileEntry, Project } from '@/lib/types'
 type ProjectState = {
   projects: Project[]
   current: Project | null
-  keepChatId: number | null
   files: FileEntry[]
   activePath: string | null
   changedPaths: Record<string, ChangeKind>
@@ -21,14 +20,12 @@ type ProjectState = {
   setActivePath: (path: string) => void
   setStatus: (status: string) => void
   setVersion: (version: number) => void
-  setKeepChatId: (id: number | null) => void
   clearCurrent: () => void
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   current: null,
-  keepChatId: null,
   files: [],
   activePath: null,
   changedPaths: {},
@@ -101,6 +98,5 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((state) =>
       state.current ? { current: { ...state.current, current_version: version, status: 'idle' } } : state,
     ),
-  setKeepChatId: (id) => set({ keepChatId: id }),
   clearCurrent: () => set({ current: null, files: [], activePath: null, changedPaths: {}, prevContent: {} }),
 }))

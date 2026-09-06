@@ -25,6 +25,7 @@ export function attachStream(id: number, replay = true) {
       })
     return () => controller.abort()
   }
+  const epoch = useChatStore.getState().epoch
   const applyEvent = useChatStore.getState().applyEvent
   const applyFileWrite = useProjectStore.getState().applyFileWrite
   const setVersion = useProjectStore.getState().setVersion
@@ -33,6 +34,12 @@ export function attachStream(id: number, replay = true) {
   return connectSse(`/api/projects/${id}/stream`, {
     replay,
     onEvent: (event) => {
+      if (
+        (event.event === 'done' || event.event === 'error') &&
+        useChatStore.getState().epoch !== epoch
+      ) {
+        return
+      }
       applyEvent(event.event, event.data)
       if (event.event === 'file_write') {
         applyFileWrite(
