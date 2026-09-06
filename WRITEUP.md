@@ -74,7 +74,7 @@ sudo docker compose up -d
 | A8 / A10 账户与持久化 | JWT + 用户隔离；SQLite 存项目 / 消息 / 版本 / 发布。公网免费档无持久盘，以本地 / Compose 卷为准。 |
 | A9 公网 | Pages 静态回放；完整管线 http://111.230.155.101:8000 。真模型改服务器 `~/atoms-demo/.env` 后 `sudo docker compose up -d` |
 
-未做：运行时 CDN 本地化、Race Mode。点选目前是「选中 → 一句话」，不是完整快捷条。公网默认 Mock，每 IP 每日 5 次生成。
+未做：运行时 CDN 本地化、Race Mode。点选目前是「选中 → 一句话」，不是完整快捷条。公网默认 Mock（Mock 不限次数）；真模型时每 IP 每日约 50 次生成。
 
 
 ## 怎么用 AI 做这个 Demo

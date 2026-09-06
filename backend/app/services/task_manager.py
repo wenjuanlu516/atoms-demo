@@ -69,10 +69,13 @@ class TaskManager:
         if existing is None:
             existing = loop.create_future()
             self.approvals[project_id] = existing
+        self.semaphore.release()
         try:
             return bool(await asyncio.wait_for(asyncio.shield(existing), timeout=timeout))
         except TimeoutError:
             return False
+        finally:
+            await self.semaphore.acquire()
 
     def resolve_approval(self, project_id: int, approved: bool) -> bool:
         fut = self.approvals.get(project_id)

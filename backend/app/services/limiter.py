@@ -8,7 +8,8 @@ from app.config import get_settings
 
 
 def _enabled() -> bool:
-    return get_settings().app_env == "production"
+    settings = get_settings()
+    return settings.app_env == "production" and not settings.llm_mock
 
 
 # Do not write X-RateLimit headers: limited routes return Pydantic models,

@@ -1,11 +1,12 @@
-import { useEffect } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { Workspace } from '@/components/layout/Workspace'
 import {
   connectProjectStream,
   hydrateProject,
   openBlankWorkspace,
+  pullPlan,
   rewriteWaitingPlan,
   sendFollowUp,
   shouldReuseChat,
@@ -54,17 +55,22 @@ function BlankWorkspace() {
 
   const onSend = async (text: string) => {
     const chat = useChatStore.getState()
+    const existing = useProjectStore.getState().current?.id
     if (chat.awaitingApproval) {
-      await rewriteWaitingPlan(useProjectStore.getState().current?.id ?? null)
-    } else if (chat.busy) {
+      await rewriteWaitingPlan(existing ?? null)
+    } else if (chat.busy && existing) {
       chat.setQueued(text)
       return
+    } else if (chat.busy) {
+      stopLocally()
     }
     try {
-      const existing = useProjectStore.getState().current?.id
-      if (existing) {
-        await sendFollowUp(existing, text)
-        if (useChatStore.getState().busy) navigate(`/w/${existing}`, { replace: true })
+      const currentId = useProjectStore.getState().current?.id
+      if (currentId) {
+        await sendFollowUp(currentId, text)
+        if (useChatStore.getState().busy) {
+          navigate(`/w/${currentId}`, { replace: true, state: { handoff: true } })
+        }
         return
       }
       const project = await startNewProject(text)
@@ -72,7 +78,7 @@ function BlankWorkspace() {
         void stopGeneration(project.id)
         return
       }
-      navigate(`/w/${project.id}`, { replace: true })
+      navigate(`/w/${project.id}`, { replace: true, state: { handoff: true } })
     } catch {
       /* session helpers record the error */
     }
@@ -89,18 +95,24 @@ function BlankWorkspace() {
 }
 
 function ProjectWorkspace({ id }: { id: number }) {
+  const location = useLocation()
+  const handoff = useRef((location.state as { handoff?: boolean } | null)?.handoff === true)
   const busy = useChatStore((state) => state.busy)
   const queued = useChatStore((state) => state.queued)
 
   useEffect(() => {
-    const reuse = shouldReuseChat(
-      useProjectStore.getState().current?.id,
-      id,
-      useChatStore.getState().busy,
-      useChatStore.getState().messages.length,
-    )
+    const reuse =
+      handoff.current &&
+      shouldReuseChat(
+        useProjectStore.getState().current?.id,
+        id,
+        useChatStore.getState().busy,
+        useChatStore.getState().messages.length,
+      )
+    handoff.current = false
     if (reuse) {
       void useProjectStore.getState().loadOne(id)
+      void pullPlan(id)
       return connectProjectStream(id, true)
     }
 

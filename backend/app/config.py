@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     data_dir: str = "./data"
     frontend_dist: str = ""
 
-    rate_limit_daily: int = 5
+    rate_limit_daily: int = 50
     max_concurrent_tasks: int = 3
     max_fix_rounds: int = 2
     max_runtime_fix: int = 2

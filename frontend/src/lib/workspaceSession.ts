@@ -5,15 +5,14 @@ import { useChatStore } from '@/stores/chatStore'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useProjectStore } from '@/stores/projectStore'
 
-/** Same project + an in-progress or already-painted chat: remount must not wipe it. */
+/** Only reuse when this route is the project we just created and already painted. */
 export function shouldReuseChat(
   currentId: number | null | undefined,
   routeId: number,
   busy: boolean,
   messageCount: number,
 ): boolean {
-  if (currentId != null && currentId !== routeId) return false
-  return busy || messageCount > 0
+  return currentId === routeId && (busy || messageCount > 0)
 }
 
 function failSend(error: unknown) {
@@ -29,29 +28,22 @@ function failSend(error: unknown) {
   })
 }
 
-let startLock: Promise<{ id: number }> | null = null
-
 export async function startNewProject(prompt: string, title?: string) {
-  if (startLock) return startLock
+  disconnectProjectStream()
   const chat = useChatStore.getState()
   if (!chat.busy) chat.beginRound('build', prompt)
   useChatStore.setState({ statusLabel: '正在创建项目…' })
-  startLock = (async () => {
+  try {
     const project = await useProjectStore.getState().create(prompt, title)
     if (useChatStore.getState().busy) {
-      useChatStore.setState({ statusLabel: '等待你接受计划' })
+      useChatStore.setState({ statusLabel: '正在连接团队…' })
       connectProjectStream(project.id, true)
-      void syncGeneration(project.id)
+      void pullPlan(project.id)
     }
     return project
-  })()
-  try {
-    return await startLock
   } catch (error) {
     failSend(error)
     throw error
-  } finally {
-    startLock = null
   }
 }
 
@@ -63,6 +55,7 @@ export async function sendFollowUp(projectId: number, prompt: string) {
     await postMessage(projectId, prompt)
     useProjectStore.getState().setStatus(followUp ? 'iterating' : 'generating')
     connectProjectStream(projectId, true)
+    if (!followUp) void pullPlan(projectId)
   } catch (error) {
     failSend(error)
     throw error
@@ -128,6 +121,7 @@ export async function hydrateProject(id: number) {
       statusLabel: pending ? '等待你接受计划' : '团队继续中…',
     })
     if (pending) useChatStore.getState().applyEvent('plan_ready', pending)
+    else void pullPlan(id)
   }
   return live
 }
@@ -145,6 +139,20 @@ export function connectProjectStream(id: number, replay: boolean) {
   return disconnectProjectStream
 }
 
+export async function pullPlan(id: number, attempts = 24, delayMs = 250) {
+  for (let i = 0; i < attempts; i += 1) {
+    if (!useChatStore.getState().busy) return
+    try {
+      await syncGeneration(id)
+    } catch {
+      /* next attempt */
+    }
+    const chat = useChatStore.getState()
+    if (chat.awaitingApproval || chat.messages.some((item) => item.kind === 'plan')) return
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs))
+  }
+}
+
 export function syncGeneration(id: number) {
   return getProject(id).then((detail) => {
     const chat = useChatStore.getState()
@@ -153,7 +161,7 @@ export function syncGeneration(id: number) {
     chat.ingestMessages(detail.messages)
     chat.syncStepsFromMessages(agents)
     const pending = planFromMessages(detail.messages)
-    if (pending && !chat.awaitingApproval && !chat.messages.some((item) => item.kind === 'plan')) {
+    if (pending && !chat.messages.some((item) => item.kind === 'plan')) {
       chat.applyEvent('plan_ready', pending)
     }
     if (detail.current_version > 0) {

@@ -10,6 +10,7 @@ services:
       FRONTEND_DIST: /app/frontend_dist
       DATA_DIR: /app/data
       DATABASE_URL: sqlite:////app/data/atoms.db
+      RATE_LIMIT_DAILY: "50"
     volumes:
       - atoms-data:/app/data
     restart: unless-stopped

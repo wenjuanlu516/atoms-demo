@@ -22,12 +22,18 @@ export function ProjectsPage() {
   }, [loadList])
 
   const start = async (prompt: string, title?: string) => {
+    if (creating) return
     setCreating(true)
     setError(null)
     try {
-      useChatStore.getState().reset()
-      const project = await startNewProject(prompt, title)
-      navigate(`/w/${project.id}`)
+      openBlankWorkspace()
+      const project = await Promise.race([
+        startNewProject(prompt, title),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error('创建超时，请再试一次')), 12000)
+        }),
+      ])
+      navigate(`/w/${project.id}`, { state: { handoff: true } })
     } catch (err) {
       useChatStore.getState().reset()
       setError(err instanceof Error ? err.message : '创建失败，请再试一次')
@@ -84,7 +90,11 @@ export function ProjectsPage() {
             </Button>
             <ModelSelect />
           </div>
-          {error && <p className="mt-3 text-sm text-rose">{error}</p>}
+          {error && (
+            <p className="mt-3 rounded-xl border border-rose/40 bg-rose/10 px-3 py-2 text-sm text-rose">
+              {error}
+            </p>
+          )}
         </section>
 
         <section>
