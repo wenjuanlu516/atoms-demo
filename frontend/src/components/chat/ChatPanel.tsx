@@ -59,7 +59,7 @@ export function ChatPanel({
             GitHub Pages 静态演示：生成走内置回放，数据存在本机浏览器。完整管线请本地 <code className="text-fog">./start.sh</code>。
           </p>
         )}
-        {empty && (
+        {empty && !busy && (
           <div className="px-0.5">
             <p className="text-sm font-medium text-snow">从一句话开始</p>
             <p className="mt-1 text-xs leading-5 text-mist">

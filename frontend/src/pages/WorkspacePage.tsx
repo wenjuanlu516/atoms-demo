@@ -21,6 +21,7 @@ export function WorkspacePage() {
   const loadOne = useProjectStore((state) => state.loadOne)
   const setStatus = useProjectStore((state) => state.setStatus)
   const clearCurrent = useProjectStore((state) => state.clearCurrent)
+  const currentId = useProjectStore((state) => state.current?.id)
   const resetPreview = usePreviewStore((state) => state.reset)
   const disconnectRef = useRef<(() => void) | null>(null)
   const keepChatForRef = useRef<number | null>(null)
@@ -42,6 +43,10 @@ export function WorkspacePage() {
     if (keepId != null && pid && keepId !== Number(pid) && pid !== 'new') {
       useProjectStore.getState().setKeepChatId(null)
       keepChatForRef.current = null
+    }
+
+    if (sendingRef.current && (!pid || pid === 'new')) {
+      return
     }
 
     resetChat()
@@ -93,11 +98,13 @@ export function WorkspacePage() {
     addUserMessage(text)
     try {
       if (!pid || pid === 'new') {
+        useChatStore.setState({ statusLabel: '正在创建项目…' })
         const project = await create(text)
         keepChatForRef.current = project.id
         useProjectStore.getState().setKeepChatId(project.id)
         disconnectRef.current?.()
         disconnectRef.current = attachStream(project.id, true)
+        useChatStore.setState({ statusLabel: '等待你接受计划' })
         navigate(`/w/${project.id}`, { replace: true })
         return
       }
@@ -107,7 +114,13 @@ export function WorkspacePage() {
       disconnectRef.current?.()
       disconnectRef.current = attachStream(id, true)
     } catch (error) {
-      useChatStore.setState({ busy: false, statusLabel: '' })
+      useChatStore.setState({
+        busy: false,
+        awaitingApproval: false,
+        pendingPlan: null,
+        statusLabel: '',
+        steps: [],
+      })
       useChatStore.getState().applyEvent('error', {
         message: error instanceof Error ? error.message : '发送失败',
       })
@@ -125,8 +138,9 @@ export function WorkspacePage() {
   }
 
   useEffect(() => {
-    if (!busy || !pid || pid === 'new') return
-    const id = Number(pid)
+    if (!busy) return
+    const id = pid && pid !== 'new' ? Number(pid) : currentId
+    if (!id) return
     const tick = () => {
       void getProject(id).then((detail) => {
         const chat = useChatStore.getState()
@@ -156,7 +170,7 @@ export function WorkspacePage() {
     tick()
     const timer = window.setInterval(tick, 1200)
     return () => window.clearInterval(timer)
-  }, [busy, pid, loadOne, setStatus])
+  }, [busy, pid, currentId, loadOne, setStatus])
 
   useEffect(() => {
     if (busy || !queued || sendingRef.current) return
@@ -168,7 +182,14 @@ export function WorkspacePage() {
   const onStop = async () => {
     useChatStore.getState().setQueued(null)
     if (!pid || pid === 'new') {
-      useChatStore.setState({ busy: false, awaitingApproval: false, pendingPlan: null, statusLabel: '' })
+      sendingRef.current = false
+      useChatStore.setState({
+        busy: false,
+        awaitingApproval: false,
+        pendingPlan: null,
+        statusLabel: '',
+        steps: [],
+      })
       return
     }
     try {
